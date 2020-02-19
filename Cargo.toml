@@ -1,0 +1,85 @@
+[package]
+name = "substrate-module-template"
+version = "0.1.0"
+authors = ["Anonymous"]
+edition = "2018"
+
+[features]
+default = ['std']
+std = [
+    'serde',
+    'codec/std',
+    'support/std',
+    'system/std',
+    'node-primitives/std',
+    'sp-io/std',
+    'sp-runtime/std',
+    'sp-std/std',
+    'sp-core/std',
+    'pallet-timestamp/std',
+    'randomness-collective-flip/std',
+]
+
+[dependencies.serde]
+version = "1.0.102"
+optional = true
+
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '1.0.6'
+
+[dependencies.support]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'frame-support'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.system]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'frame-system'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.node-primitives]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'node-primitives'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.sp-io]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sp-io'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.sp-runtime]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sp-runtime'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.sp-std]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sp-std'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.sp-core]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'sp-core'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.pallet-timestamp]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'pallet-timestamp'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.randomness-collective-flip]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'pallet-randomness-collective-flip'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
