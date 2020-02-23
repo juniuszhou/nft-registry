@@ -18,6 +18,9 @@ std = [
     'sp-core/std',
     'pallet-timestamp/std',
     'randomness-collective-flip/std',
+    'contracts/std',
+    'balances/std',
+    'ink-core/std',
 ]
 
 [dependencies.serde]
@@ -29,6 +32,18 @@ default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
 version = '1.0.6'
+
+[dependencies.contracts]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'pallet-contracts'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.balances]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'pallet-balances'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
 
 [dependencies.support]
 default_features = false
@@ -83,3 +98,12 @@ default_features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-randomness-collective-flip'
 rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.ink-core]
+default-features = false
+git = "https://github.com/paritytech/ink"
+package = "ink_core"
+rev = '03825afbe66b68e58df9d2be9d34570718bfbcf7'
+
+[dev-dependencies.wabt]
+version = "0.9.2"
