@@ -1,5 +1,5 @@
 [package]
-name = "substrate-module-template"
+name = "nftregistry"
 version = "0.1.0"
 authors = ["Anonymous"]
 edition = "2018"
@@ -105,5 +105,5 @@ git = "https://github.com/paritytech/ink"
 package = "ink_core"
 rev = '03825afbe66b68e58df9d2be9d34570718bfbcf7'
 
-[dev-dependencies.wabt]
+[dependencies.wabt]
 version = "0.9.2"

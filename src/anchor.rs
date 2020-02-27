@@ -5,16 +5,7 @@
 //! [Centrifuge Protocol Paper](https://staticw.centrifuge.io/assets/centrifuge_os_protocol_paper.pdf)
 
 use codec::{Decode, Encode};
-use sp_runtime::traits::Hash;
-use sp_std::{convert::TryInto, vec::Vec};
-use support::{
-    decl_module, decl_storage,
-    dispatch::{DispatchError, DispatchResult},
-    ensure,
-    storage::child::{self, ChildInfo},
-    weights::SimpleDispatchInfo,
-};
-use system::ensure_signed;
+use support::{decl_module, decl_storage};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -49,7 +40,7 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
     /// Get an anchor by its id in the child storage
-    pub fn get_anchor_by_id(anchor_id: T::Hash) -> Option<AnchorData<T::Hash, T::BlockNumber>> {
+    pub fn get_anchor_by_id(_anchor_id: T::Hash) -> Option<AnchorData<T::Hash, T::BlockNumber>> {
         let result: AnchorData<T::Hash, T::BlockNumber> = Default::default();
         Some(result)
     }

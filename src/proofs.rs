@@ -1,6 +1,5 @@
 use codec::{Decode, Encode};
 use sp_core::H256;
-use sp_runtime::RuntimeDebug;
 use sp_std::vec::Vec;
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]

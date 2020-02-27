@@ -8,21 +8,16 @@
 
 /// For more guidance on Substrate modules, see the example module
 /// https://github.com/paritytech/substrate/blob/master/srml/example/src/lib.rs
-use system::{ensure_signed, RawOrigin};
+use system::ensure_signed;
 
-use node_primitives::{Balance, BlockNumber, Hash};
+use sp_runtime::traits::{Hash as HashT, Zero};
 use support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchError,
-    dispatch::DispatchResult, ensure, traits::Randomness, weights::SimpleDispatchInfo,
+    dispatch::DispatchResult, ensure, traits::Randomness,
 };
-// use sp_core::hashing::keccak_256;
-use sp_io::hashing::{blake2_256, keccak_256};
-use sp_runtime::traits::{BlakeTwo256, Hash as HashT, StaticLookup, Zero};
-use sp_runtime::RandomNumberGenerator;
-use sp_std::vec::Vec;
 
 // Encoding library
-use codec::{Codec, Decode, Encode};
+use codec::Encode;
 
 pub trait Trait: system::Trait + balances::Trait + contracts::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
@@ -142,12 +137,12 @@ impl<T: Trait> Module<T> {
         Ok(random_hash)
     }
 
-    fn _exists(token_id: T::Hash) -> bool {
+    pub fn _exists(token_id: T::Hash) -> bool {
         return <TokenOwner<T>>::exists(token_id);
     }
 
     // token owner or token approval or owner's delegate
-    fn _is_approved_or_owner(spender: T::AccountId, token_id: T::Hash) -> bool {
+    pub fn _is_approved_or_owner(spender: T::AccountId, token_id: T::Hash) -> bool {
         let owner = Self::owner_of(token_id);
         let approved_user = Self::get_approved(token_id);
 

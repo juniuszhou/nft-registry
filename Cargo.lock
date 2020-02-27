@@ -764,6 +764,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nftregistry"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "ink_core",
+ "node-primitives",
+ "pallet-balances",
+ "pallet-contracts",
+ "pallet-randomness-collective-flip",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "wabt",
+]
+
+[[package]]
 name = "node-primitives"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate.git?rev=ddb309ae7c70e5e51a60879af18819cf28be4a32#ddb309ae7c70e5e51a60879af18819cf28be4a32"
@@ -1734,27 +1755,6 @@ dependencies = [
  "pbkdf2",
  "schnorrkel",
  "sha2",
-]
-
-[[package]]
-name = "substrate-module-template"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "ink_core",
- "node-primitives",
- "pallet-balances",
- "pallet-contracts",
- "pallet-randomness-collective-flip",
- "pallet-timestamp",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "wabt",
 ]
 
 [[package]]
