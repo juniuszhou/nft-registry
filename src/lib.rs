@@ -101,10 +101,10 @@ decl_storage! {
         pub RegistryTokenMetadata get(registry_token_metadata): map hasher(blake2_256) (RegistryUid, u64) => Vec<u8>;
 
         // Metadata min length
-        pub MinMetadataLength get(min_token_uri_length) config(): u32;
+        pub MinMetadataLength get(min_token_metadata_length) config(): u32;
 
         // Metadata max length
-        pub MaxMetadataLength get(max_token_uri_length) config(): u32;
+        pub MaxMetadataLength get(max_token_metadata_length) config(): u32;
 
         // Token URI not needed yet.
         // Token's URI

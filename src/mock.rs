@@ -151,10 +151,10 @@ thread_local! {
     static BLOCK_GAS_LIMIT: RefCell<u64> = RefCell::new(0);
 }
 
-pub fn create_genesis_config() -> crate::GenesisConfig  {
-    crate::GenesisConfig  {
-        min_token_uri_length: 10,
-        max_token_uri_length: 100,
+pub fn create_genesis_config() -> crate::GenesisConfig {
+    crate::GenesisConfig {
+        min_token_metadata_length: 10,
+        max_token_metadata_length: 100,
     }
 }
 
@@ -188,7 +188,7 @@ impl ExtBuilder {
     pub fn build(self) -> sp_io::TestExternalities {
         self.set_associated_consts();
         let mut t = system::GenesisConfig::default()
-        // let mut t = create_genesis_config()
+            // let mut t = create_genesis_config()
             .build_storage::<NftRegistryTest>()
             .unwrap();
         balances::GenesisConfig::<NftRegistryTest> {
@@ -251,8 +251,8 @@ impl contracts::Trait for NftRegistryTest {
 }
 
 parameter_types! {
-    pub const NFTDepositBase: u64 = 10000 * CENTS as u64;
-    pub const NFTDepositPerByte: u64 = 1000 * CENTS as u64;
+    pub const NFTDepositBase: u64 = 1_000 * CENTS as u64;
+    pub const NFTDepositPerByte: u64 = 1_000 * CENTS as u64;
 }
 
 impl super::Trait for NftRegistryTest {

@@ -1,27 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
-/// A runtime module template with necessary imports
-
-/// Feel free to remove or edit this file as needed.
-/// If you change the name of this file, make sure to update its references in runtime/src/lib.rs
-/// If you remove this file, you can remove those references
-
-/// For more guidance on Substrate modules, see the example module
-/// https://github.com/paritytech/substrate/blob/master/srml/example/src/lib.rs
-use system::ensure_signed;
-
 use sp_runtime::traits::Hash as HashT;
 use support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchError,
     dispatch::DispatchResult, ensure, traits::Randomness,
 };
+use system::ensure_signed;
 
 // Encoding library
 use codec::Encode;
 
 pub trait Trait: system::Trait + balances::Trait + contracts::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-    /// Something that provides randomness in the runtime.
+    /// Something that provides randomness generation in the runtime.
     type Randomness: Randomness<Self::Hash>;
 }
 
@@ -41,26 +31,48 @@ decl_event!(
         where
         <T as system::Trait>::AccountId,
         <T as system::Trait>::Hash {
-        // ERC 721 Events
+
+        // Token transfer event
         Transfer(Option<AccountId>, Option<AccountId>, Hash),
+
+        // One token approved to an account
         Approval(AccountId, AccountId, Hash),
+
+        // All tokens owned by an account are approved to other account
         ApprovalForAll(AccountId, AccountId, bool),
     }
 );
 
 decl_storage! {
     trait Store for Module<T: Trait> as ERC721 {
+        // Token count owned by an account
         pub OwnedTokensCount get(balance_of): map T::AccountId => u64;
+
+        // Token owner's account id
         pub TokenOwner get(owner_of): map T::Hash => Option<T::AccountId>;
+
+        // Token delegate's account id
         pub TokenApprovals get(get_approved): map T::Hash => Option<T::AccountId>;
+
+        // Account deledate's account id
         pub OperatorApprovals get(is_approved_for_all): map (T::AccountId, T::AccountId) => bool;
 
+        // Total count of minted token
         pub TotalSupply get(total_supply): u64;
+
+        // Map of token index to token id
         pub AllTokens get(token_by_index): map u64 => T::Hash;
+
+        // Last token index
         pub AllTokensIndex: map T::Hash => u64;
+
+        // Map of account and index to token id
         pub OwnedTokens get(token_of_owner_by_index): map (T::AccountId, u64) => T::Hash;
+
+        // Token id to index
         pub OwnedTokensIndex: map T::Hash => u64;
 
+        // Value use to generate random value
         pub Nonce: u64;
     }
 }
@@ -68,6 +80,7 @@ decl_storage! {
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin  {
         fn deposit_event() = default;
+
         // Approve a token to an account
         fn approve(origin, to: T::AccountId, token_id: T::Hash) -> DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -121,6 +134,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    // Create a new token
     pub fn create_token(
         account_id: &T::AccountId,
     ) -> sp_std::result::Result<T::Hash, DispatchError> {
@@ -140,11 +154,12 @@ impl<T: Trait> Module<T> {
         Ok(random_hash)
     }
 
+    // If token is existed
     pub fn _exists(token_id: &T::Hash) -> bool {
         return <TokenOwner<T>>::exists(token_id);
     }
 
-    // token owner or token approval or owner's delegate
+    // Token owner or token approval or owner's delegate
     pub fn _is_approved_or_owner(spender: &T::AccountId, token_id: &T::Hash) -> bool {
         let owner = Self::owner_of(token_id);
         let approved_user = Self::get_approved(token_id);
@@ -167,7 +182,7 @@ impl<T: Trait> Module<T> {
         return approved_as_owner || approved_as_user || approved_as_delegate;
     }
 
-    // mint a new token
+    // Mint a new token
     fn _mint(to: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
         ensure!(!Self::_exists(token_id), "Token already exists");
 
@@ -194,7 +209,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    // burn a token
+    // Burn a token
     pub(crate) fn _burn(token_id: &T::Hash) -> DispatchResult {
         let owner = match Self::owner_of(token_id) {
             Some(c) => c,
@@ -225,6 +240,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    // Transfer token from one account to other
     pub(crate) fn _transfer_from(
         from: &T::AccountId,
         to: &T::AccountId,
@@ -269,11 +285,13 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    // Clear one token's delegate
     fn _clear_approval(token_id: &T::Hash) -> DispatchResult {
         <TokenApprovals<T>>::remove(token_id);
         Ok(())
     }
 
+    // Add token index to its owner's enumeration
     fn _add_token_to_owner_enumeration(to: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
         let new_token_index = Self::balance_of(to);
         <OwnedTokensIndex<T>>::insert(token_id, new_token_index);
@@ -282,6 +300,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    // Add token index to all token's enumeration
     fn _add_token_to_all_tokens_enumeration(token_id: &T::Hash) -> DispatchResult {
         let total_supply = Self::total_supply();
 
@@ -299,7 +318,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    // remove token info from owner
+    // Remove token info from owner
     fn _remove_token_from_owner_enumeration(
         from: &T::AccountId,
         token_id: &T::Hash,
@@ -326,7 +345,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    // remove token info from all tokens and all token index
+    // Remove token info from all tokens and all token index
     fn _remove_token_from_all_tokens_enumeration(token_id: &T::Hash) -> DispatchResult {
         let total_supply = Self::total_supply();
         let new_total_supply = match total_supply.checked_sub(1) {
