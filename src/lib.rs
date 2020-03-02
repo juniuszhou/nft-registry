@@ -18,9 +18,9 @@ use system::{ensure_signed, RawOrigin};
 
 mod anchor;
 mod erc721;
-// mod mock;
+mod mock;
 mod proofs;
-// mod tests;
+mod tests;
 
 type RegistryUid = u64;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -313,7 +313,10 @@ impl<T: Trait> Module<T> {
     }
 
     // ensure sender is uid's validation smart contract
-    fn ensure_sender_is_validation_function(uid: RegistryUid, sender: &T::AccountId) -> DispatchResult {
+    fn ensure_sender_is_validation_function(
+        uid: RegistryUid,
+        sender: &T::AccountId,
+    ) -> DispatchResult {
         Self::ensure_validation_fn_exists(uid)?;
 
         if <ValidationFn<T>>::get(uid).unwrap() == *sender {

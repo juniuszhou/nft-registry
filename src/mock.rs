@@ -2,6 +2,8 @@ use super::*;
 
 use contracts::{AccountCounter, ComputeDispatchFee, ContractAddressFor, TrieId, TrieIdGenerator};
 use ink_core::env::*;
+// use node_primitives::Balance;
+use node_runtime::constants::currency::*;
 use sp_core::H256;
 use sp_core::{sr25519, Blake2Hasher};
 use sp_runtime::{
@@ -15,7 +17,6 @@ use support::{
     assert_ok, impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types,
     traits::Currency, weights::Weight,
 };
-
 pub mod nftregistry {
     // Re-export contents of the root. This basically
     // needs to give a name for the current crate.
@@ -149,6 +150,14 @@ thread_local! {
     static INSTANTIATION_FEE: RefCell<u64> = RefCell::new(0);
     static BLOCK_GAS_LIMIT: RefCell<u64> = RefCell::new(0);
 }
+
+pub fn create_genesis_config() -> crate::GenesisConfig  {
+    crate::GenesisConfig  {
+        min_token_uri_length: 10,
+        max_token_uri_length: 100,
+    }
+}
+
 impl ExtBuilder {
     pub fn existential_deposit(mut self, existential_deposit: u64) -> Self {
         self.existential_deposit = existential_deposit;
@@ -179,6 +188,7 @@ impl ExtBuilder {
     pub fn build(self) -> sp_io::TestExternalities {
         self.set_associated_consts();
         let mut t = system::GenesisConfig::default()
+        // let mut t = create_genesis_config()
             .build_storage::<NftRegistryTest>()
             .unwrap();
         balances::GenesisConfig::<NftRegistryTest> {
@@ -196,6 +206,10 @@ impl ExtBuilder {
         }
         .assimilate_storage(&mut t)
         .unwrap();
+
+        let nft_config = create_genesis_config();
+        nft_config.assimilate_storage(&mut t).unwrap();
+
         sp_io::TestExternalities::new(t)
     }
 }
@@ -236,9 +250,18 @@ impl contracts::Trait for NftRegistryTest {
     type BlockGasLimit = BlockGasLimit;
 }
 
+parameter_types! {
+    pub const NFTDepositBase: u64 = 10000 * CENTS as u64;
+    pub const NFTDepositPerByte: u64 = 1000 * CENTS as u64;
+}
+
 impl super::Trait for NftRegistryTest {
     type Event = MetaEvent;
+    // type Balance = u64;
     type Randomness = RandomnessCollectiveFlip;
+    type NFTDepositBase = NFTDepositBase;
+    type NFTDepositPerByte = NFTDepositPerByte;
+    type Currency = Balances;
 }
 
 pub struct DummyContractAddressFor;
@@ -320,7 +343,7 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
 }
 
 pub fn create_nft_mock() {
-    Balances::deposit_creating(&ALICE, 100_000_000);
+    Balances::deposit_creating(&ALICE, 100_000_000_000_000_000);
     let origin = Origin::signed(ALICE);
     let registry_id = 0;
 
@@ -354,6 +377,7 @@ pub fn create_nft_mock() {
             origin,
             registry_id,
             vec![],
+            b"valid metadata".to_vec(),
             0,
             100_000
         ))
@@ -363,7 +387,7 @@ pub fn create_nft_mock() {
     assert!(<system::Module<NftRegistryTest>>::events()
         .iter()
         .find(|e| match e.event {
-            MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
+            MetaEvent::nftregistry(RawEvent::MintNft(_, _, _)) => true,
             _ => false,
         })
         .is_some());

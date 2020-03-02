@@ -20,6 +20,7 @@ std = [
     'randomness-collective-flip/std',
     'contracts/std',
     'balances/std',
+    'node-runtime/std',
     'ink-core/std',
 ]
 
@@ -97,6 +98,12 @@ rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
 default_features = false
 git = 'https://github.com/paritytech/substrate.git'
 package = 'pallet-randomness-collective-flip'
+rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
+
+[dependencies.node-runtime]
+default_features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'node-runtime'
 rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
 
 [dependencies.ink-core]
