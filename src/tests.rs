@@ -12,7 +12,23 @@ fn mint_nft_from_basic_contract() {
         let (bytecode, codehash) = compile_smart_contract::<NftRegistryTest>();
         let contract_address =
             register_validation_fn_mock::<NftRegistryTest>(account_id, &bytecode, &codehash);
-        create_nft_mock(registry_id, account_id, contract_address);
+        register_validation_mock(account_id, contract_address);
+        create_nft_mock(registry_id, account_id, Ok(()));
+    });
+}
+
+#[test]
+fn mint_validation_not_exist() {
+    ExtBuilder::default().build().execute_with(|| {
+        create_account_mock();
+        let account_id = ALICE;
+        let registry_id = 0;
+        let contract_address = NULL_CONTRACT;
+        create_nft_mock(
+            registry_id,
+            account_id,
+            Err(Error::<NftRegistryTest>::ValidationFnNotExisted.into()),
+        );
     });
 }
 

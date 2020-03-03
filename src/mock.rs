@@ -301,6 +301,7 @@ pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const CHARLIE: u64 = 3;
 pub const DJANGO: u64 = 4;
+pub const NULL_CONTRACT: u64 = 100;
 
 pub const CODE_DISPATCH_CALL: &str = r#"
 (module
@@ -383,36 +384,45 @@ where
     )
 }
 
-pub fn create_nft_mock(registry_id: u64, account_id: u64, contract_addr: u64) {
+pub fn register_validation_mock(account_id: u64, contract_address: u64) {
     let origin = Origin::signed(account_id);
 
     // Create registry and mint nft
-    assert_ok!(
-        NftReg::new_registry(origin.clone(), contract_addr).and_then(|_| NftReg::mint(
+    assert_ok!(NftReg::new_registry(origin.clone(), contract_address));
+
+    // Check event logs to see that validation function registered
+    assert!(<system::Module<NftRegistryTest>>::events()
+        .iter()
+        .find(|e| match e.event {
+            MetaEvent::nftregistry(RawEvent::NewRegistry(_, _)) => true,
+            _ => false,
+        })
+        .is_some());
+}
+
+pub fn create_nft_mock(registry_id: u64, account_id: u64, result: DispatchResult) {
+    let origin = Origin::signed(account_id);
+    // Mint a nft
+    assert_eq!(
+        NftReg::mint(
             origin,
             registry_id,
             vec![],
             b"valid metadata".to_vec(),
             0,
             100_000
-        ))
+        ),
+        result
     );
 
-    // Check event logs to see that validation function registered
-    assert!(<system::Module<NftRegistryTest>>::events()
-        .iter()
-        .find(|e| match e.event {
-            MetaEvent::nftregistry(RawEvent::NewRegistry(_, _,)) => true,
-            _ => false,
-        })
-        .is_some());
-
     // Check event logs to see that nft was minted
-    assert!(<system::Module<NftRegistryTest>>::events()
-        .iter()
-        .find(|e| match e.event {
-            MetaEvent::nftregistry(RawEvent::MintNft(_, _, _)) => true,
-            _ => false,
-        })
-        .is_some());
+    assert_eq!(
+        <system::Module<NftRegistryTest>>::events()
+            .iter()
+            .find(|e| match e.event {
+                MetaEvent::nftregistry(RawEvent::MintNft(_, _, _)) => true,
+                _ => false,
+            }).is_some(), 
+        result.is_ok(),
+    );
 }
