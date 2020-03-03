@@ -350,28 +350,31 @@ pub fn create_account_mock() {
 }
 
 // Compile smart contract from string
-pub fn compile_smart_contract<T>() -> (Vec<u8>, H256) 
-where T: system::Trait, {
+pub fn compile_smart_contract<T>() -> (Vec<u8>, H256)
+where
+    T: system::Trait,
+{
     compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap()
 }
 
-pub fn register_validation_fn_mock<T>(account_id: u64,
-    bytecode: &Vec<u8>, 
-    codehash: &H256) -> u64 
-    where T: system::Trait, {
+pub fn register_validation_fn_mock<T>(account_id: u64, bytecode: &Vec<u8>, codehash: &H256) -> u64
+where
+    T: system::Trait,
+{
     let origin = Origin::signed(account_id);
     // Store code on chain
-    assert_ok!(
-        <contracts::Module<NftRegistryTest>>::put_code(origin.clone(), 100_000, bytecode.clone()).and_then(
-            |_| <contracts::Module<NftRegistryTest>>::instantiate(
-                origin.clone(),
-                1_000,
-                100_000,
-                *codehash,
-                codec::Encode::encode(&account_id)
-            )
-        )
-    );
+    assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
+        origin.clone(),
+        100_000,
+        bytecode.clone()
+    )
+    .and_then(|_| <contracts::Module<NftRegistryTest>>::instantiate(
+        origin.clone(),
+        1_000,
+        100_000,
+        *codehash,
+        codec::Encode::encode(&account_id)
+    )));
 
     <NftRegistryTest as contracts::Trait>::DetermineContractAddress::contract_address_for(
         &codehash,
@@ -394,6 +397,15 @@ pub fn create_nft_mock(registry_id: u64, account_id: u64, contract_addr: u64) {
             100_000
         ))
     );
+
+    // Check event logs to see that validation function registered
+    assert!(<system::Module<NftRegistryTest>>::events()
+        .iter()
+        .find(|e| match e.event {
+            MetaEvent::nftregistry(RawEvent::NewRegistry(_, _,)) => true,
+            _ => false,
+        })
+        .is_some());
 
     // Check event logs to see that nft was minted
     assert!(<system::Module<NftRegistryTest>>::events()

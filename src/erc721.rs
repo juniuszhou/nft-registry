@@ -11,17 +11,20 @@ use codec::Encode;
 
 pub trait Trait: system::Trait + balances::Trait + contracts::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-    /// Something that provides randomness generation in the runtime.
+
+    // Something that provides randomness generation in the runtime.
     type Randomness: Randomness<Self::Hash>;
 }
 
 decl_error! {
     pub enum Error for Module<T: Trait> {
-        /// No owner set for token
+        // No owner set for token
         TokenNoOwner,
-        /// Got an overflow after adding
+
+        // Got an overflow after adding
         Overflow,
-        /// Got an underflow after subing
+
+        // Got an underflow after subing
         Underflow,
     }
 }
@@ -38,7 +41,7 @@ decl_event!(
         // One token approved to an account
         Approval(AccountId, AccountId, Hash),
 
-        // All tokens owned by an account are approved to other account
+        // All tokens owned are approved to other account
         ApprovalForAll(AccountId, AccountId, bool),
     }
 );
@@ -135,12 +138,12 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
     // Create a new token
-    pub fn create_token(
+    pub(crate) fn create_token(
         account_id: &T::AccountId,
     ) -> sp_std::result::Result<T::Hash, DispatchError> {
         let nonce = Nonce::get();
-        // let random_hash = (<ystem::Module<T>>::random_seed(), &sender, nonce)
-        // .using_encoded(<T as ystem::Trait>::Hashing::hash);
+
+        // generate random hash based on account id and nonce
         let random_hash = (
             <T as Trait>::Randomness::random_seed(),
             account_id.clone(),
@@ -155,12 +158,12 @@ impl<T: Trait> Module<T> {
     }
 
     // If token is existed
-    pub fn _exists(token_id: &T::Hash) -> bool {
+    pub(crate) fn _exists(token_id: &T::Hash) -> bool {
         return <TokenOwner<T>>::exists(token_id);
     }
 
     // Token owner or token approval or owner's delegate
-    pub fn _is_approved_or_owner(spender: &T::AccountId, token_id: &T::Hash) -> bool {
+    pub(crate) fn _is_approved_or_owner(spender: &T::AccountId, token_id: &T::Hash) -> bool {
         let owner = Self::owner_of(token_id);
         let approved_user = Self::get_approved(token_id);
 
@@ -186,18 +189,13 @@ impl<T: Trait> Module<T> {
     fn _mint(to: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
         ensure!(!Self::_exists(token_id), "Token already exists");
 
-        // let random_seed = BlakeTwo256::hash(Nonce::get());
-        // let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
-
         let balance_of = Self::balance_of(to);
 
         let new_balance_of = match balance_of.checked_add(1) {
             Some(c) => c,
-            //None => return Err("Overflow adding a new token to account balance"),
             None => return Err(Error::<T>::Overflow.into()),
         };
 
-        // Writing to storage begins here
         Self::_add_token_to_all_tokens_enumeration(token_id)?;
         Self::_add_token_to_owner_enumeration(to, token_id)?;
 
@@ -263,11 +261,9 @@ impl<T: Trait> Module<T> {
 
         let new_balance_of_to = match balance_of_to.checked_add(1) {
             Some(c) => c,
-            // None => return Err("Transfer causes overflow of 'to' token balance"),
             None => return Err(Error::<T>::Overflow.into()),
         };
 
-        // Writing to storage begins here
         Self::_remove_token_from_owner_enumeration(from, token_id)?;
         Self::_add_token_to_owner_enumeration(to, token_id)?;
 
@@ -339,7 +335,6 @@ impl<T: Trait> Module<T> {
         }
 
         <OwnedTokens<T>>::remove((from, last_token_index));
-        // OpenZeppelin does not do this... should I?
         <OwnedTokensIndex<T>>::remove(token_id);
 
         Ok(())

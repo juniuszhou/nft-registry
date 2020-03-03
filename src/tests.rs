@@ -10,10 +10,9 @@ fn mint_nft_from_basic_contract() {
         let account_id = ALICE;
         let registry_id = 0;
         let (bytecode, codehash) = compile_smart_contract::<NftRegistryTest>();
-        let contract_address = register_validation_fn_mock::<NftRegistryTest>(
-            account_id, &bytecode, &codehash,
-        );
-        create_nft_mock(registry_id, account_id, contract_address,);
+        let contract_address =
+            register_validation_fn_mock::<NftRegistryTest>(account_id, &bytecode, &codehash);
+        create_nft_mock(registry_id, account_id, contract_address);
     });
 }
 

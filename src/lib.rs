@@ -4,7 +4,7 @@ use node_primitives::Balance;
 use proofs::Proof;
 use sp_core::H256;
 use sp_runtime::traits::{Saturating, StaticLookup, Zero};
-use sp_std::vec::Vec;
+use sp_std::{result::Result, vec::Vec};
 use support::{
     decl_error, decl_event, decl_module, decl_storage,
     dispatch::{DispatchError, DispatchResult},
@@ -13,8 +13,6 @@ use support::{
     weights::SimpleDispatchInfo,
 };
 use system::{ensure_signed, RawOrigin};
-
-// sp_std::result::Result<(), DispatchError>;
 
 mod anchor;
 mod erc721;
@@ -371,7 +369,7 @@ impl<T: Trait> Module<T> {
     }
 
     // Get token owner
-    fn _get_token_owner(token_id: &T::Hash) -> sp_std::result::Result<T::AccountId, DispatchError> {
+    fn _get_token_owner(token_id: &T::Hash) -> Result<T::AccountId, DispatchError> {
         let owner = <erc721::Module<T>>::owner_of(token_id);
         match owner {
             Some(token_owner) => Ok(token_owner),
@@ -380,14 +378,12 @@ impl<T: Trait> Module<T> {
     }
 
     // Mint a NFT according to accound id
-    fn mint_nft(
-        account_id: &T::AccountId,
-        _uid: RegistryUid,
-    ) -> sp_std::result::Result<T::Hash, DispatchError> {
+    fn mint_nft(account_id: &T::AccountId, _uid: RegistryUid) -> Result<T::Hash, DispatchError> {
         let token_id = <erc721::Module<T>>::create_token(account_id)?;
         Ok(token_id)
     }
 
+    // Validate proof via merkle tree
     fn validate_proofs(doc_root: T::Hash, pfs: &Vec<Proof>, static_proofs: [H256; 3]) -> bool {
         proofs::validate_proofs(H256::from_slice(doc_root.as_ref()), pfs, static_proofs)
     }
