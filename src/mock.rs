@@ -408,6 +408,7 @@ pub fn create_nft_mock(registry_id: u64, account_id: u64, token_id: H256, result
             origin,
             registry_id,
             token_id,
+            b"".to_vec(),
             b"valid metadata".to_vec(),
             0,
             100_000

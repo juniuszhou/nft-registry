@@ -2,7 +2,7 @@
 
 use proofs::Proof;
 use sp_core::H256;
-use sp_runtime::traits::{Saturating, StaticLookup,};
+use sp_runtime::traits::{Saturating, StaticLookup};
 use sp_std::{result::Result, vec::Vec};
 use support::{
     decl_error, decl_event, decl_module, decl_storage,
@@ -23,10 +23,12 @@ mod proofs;
 mod tests;
 
 #[derive(Encode)]
-struct Parameter<Hash, Account> {
+struct ContractParameter<Hash, Account> {
+    uid: RegistryUid,
     token_id: Hash,
     token_owner: Account,
     metadata: Vec<u8>,
+    parameters: Vec<u8>,
 }
 
 type RegistryUid = u64;
@@ -155,6 +157,7 @@ decl_module! {
                 uid: RegistryUid,
                 token_id: T::Hash,
                 metadata: Vec<u8>,
+                parameters: Vec<u8>,
                 value: contracts::BalanceOf<T>,
                 gas_limit: contracts::Gas,
             ) -> DispatchResult {
@@ -170,15 +173,17 @@ decl_module! {
             Self::ensure_metadata_valid(&metadata)?;
 
             // Put parameters into single struct.
-            let p = Parameter::<T::Hash, T::AccountId> {
+            let contract_parameter = ContractParameter::<T::Hash, T::AccountId> {
+                uid: uid,
                 token_id: token_id,
                 token_owner: sender.clone(),
                 metadata: metadata.clone(),
+                parameters: parameters,
             };
 
             // Encode the sender and metadata together into parameters.
             let mut call_parameter = vec![];
-            p.using_encoded(|data| call_parameter.extend(data));
+            contract_parameter.using_encoded(|data| call_parameter.extend(data));
 
             // Wasm contract should emit an event for success or failure
             <contracts::Module<T>>::call(
