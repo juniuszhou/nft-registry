@@ -149,6 +149,8 @@ decl_module! {
         }
 
         // Mint a new token
+        // Value: account can transfer some currency to smart contract via calling
+        // Gas limit: set the maximum gas usage for smart contract execution in WASM
         fn mint(origin,
                 uid: RegistryUid,
                 token_id: T::Hash,
