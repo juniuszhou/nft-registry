@@ -186,7 +186,7 @@ impl<T: Trait> Module<T> {
     }
 
     // Mint a new token
-    fn _mint(to: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
+    pub(crate) fn _mint(to: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
         ensure!(!Self::_exists(token_id), "Token already exists");
 
         let balance_of = Self::balance_of(to);

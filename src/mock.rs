@@ -400,14 +400,14 @@ pub fn register_validation_mock(account_id: u64, contract_address: u64) {
         .is_some());
 }
 
-pub fn create_nft_mock(registry_id: u64, account_id: u64, result: DispatchResult) {
+pub fn create_nft_mock(registry_id: u64, account_id: u64, token_id: H256, result: DispatchResult) {
     let origin = Origin::signed(account_id);
     // Mint a nft
     assert_eq!(
         NftReg::mint(
             origin,
             registry_id,
-            vec![],
+            token_id,
             b"valid metadata".to_vec(),
             0,
             100_000
@@ -420,9 +420,25 @@ pub fn create_nft_mock(registry_id: u64, account_id: u64, result: DispatchResult
         <system::Module<NftRegistryTest>>::events()
             .iter()
             .find(|e| match e.event {
-                MetaEvent::nftregistry(RawEvent::MintNft(_, _, _)) => true,
+                MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
                 _ => false,
-            }).is_some(), 
+            })
+            .is_some(),
         result.is_ok(),
     );
+
+    if result.is_ok() {
+        let owner = NftReg::_get_token_owner(&token_id);
+        println!("token is {:?} owner is {:?}", token_id, owner);
+    // Some(token_id)
+    } else {
+        // None
+    }
+    // assert_eq!(true, false);
 }
+
+// pub fn transfer_token_mock(token_id: u64, sender: u64, from: u64, to: u64, result: DispatchResult) {
+//     let from_account = Origin::signed(from);
+//     let to_account = Origin::signed(to)
+
+// }

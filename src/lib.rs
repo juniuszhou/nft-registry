@@ -1,9 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use node_primitives::Balance;
 use proofs::Proof;
 use sp_core::H256;
-use sp_runtime::traits::{Saturating, StaticLookup, Zero};
+use sp_runtime::traits::{Saturating, StaticLookup,};
 use sp_std::{result::Result, vec::Vec};
 use support::{
     decl_error, decl_event, decl_module, decl_storage,
@@ -14,11 +13,21 @@ use support::{
 };
 use system::{ensure_signed, RawOrigin};
 
+// Encoding library
+use codec::Encode;
+
 mod anchor;
 mod erc721;
 mod mock;
 mod proofs;
 mod tests;
+
+#[derive(Encode)]
+struct Parameter<Hash, Account> {
+    token_id: Hash,
+    token_owner: Account,
+    metadata: Vec<u8>,
+}
 
 type RegistryUid = u64;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -50,6 +59,9 @@ decl_error! {
         /// Token not minted
         TokenNotMinted,
 
+        /// Token already existed
+        TokenAlreadyExisted,
+
         // Now token owner
         WrongTokenOwner,
 
@@ -69,12 +81,11 @@ decl_event!(
         where
         <T as system::Trait>::AccountId,
         <T as system::Trait>::Hash {
-        
         // Account register a new Uid with smart contract
         NewRegistry(AccountId, RegistryUid),
         
         // New NFT created
-        MintNft(RegistryUid, u64, Hash),
+        MintNft(RegistryUid, Hash),
     }
 );
 
@@ -83,20 +94,14 @@ decl_storage! {
         // Each registry uid include a validation function in smart contract
         pub ValidationFn get(validator_of): map hasher(blake2_256) RegistryUid => Option<T::AccountId>;
 
-        // Each Uid can generate lots of token
-        pub RegistryNonce: map hasher(blake2_256) RegistryUid => u64;
-
         // Next Registry id
         pub NextRegistryId: RegistryUid;
 
-        // Rigistry UID and Nonce mapping to token id
-        pub RegistryToken get(registry_token): map hasher(blake2_256) (RegistryUid, u64) => T::Hash;
-
         // Registry Metadata
-        pub TokenByRegistryId get(token_by_registry_id): map hasher(blake2_256) T::Hash => (RegistryUid, u64);
+        pub TokenByRegistryId get(token_by_registry_id): map T::Hash => RegistryUid;
 
         // Metadata for each token id
-        pub RegistryTokenMetadata get(registry_token_metadata): map hasher(blake2_256) (RegistryUid, u64) => Vec<u8>;
+        pub RegistryTokenMetadata get(registry_token_metadata): map T::Hash => Vec<u8>;
 
         // Metadata min length
         pub MinMetadataLength get(min_token_metadata_length) config(): u32;
@@ -146,8 +151,8 @@ decl_module! {
         // Mint a new token
         fn mint(origin,
                 uid: RegistryUid,
+                token_id: T::Hash,
                 metadata: Vec<u8>,
-                parameters: Vec<u8>,
                 value: contracts::BalanceOf<T>,
                 gas_limit: contracts::Gas,
             ) -> DispatchResult {
@@ -156,17 +161,22 @@ decl_module! {
             // Contract registered for the uid
             Self::ensure_validation_fn_exists(uid)?;
 
+            // Ensure token id not existed
+            Self::ensure_token_not_existed(&token_id)?;
+
             // Ensure metadata is valid
             Self::ensure_metadata_valid(&metadata)?;
 
-            // Deposit for metadata bytes fee
-            let bytes_deposit = <BalanceOf<T>>::from(metadata.len() as u32).saturating_mul(T::NFTDepositPerByte::get());
+            // Put parameters into single struct.
+            let p = Parameter::<T::Hash, T::AccountId> {
+                token_id: token_id,
+                token_owner: sender.clone(),
+                metadata: metadata.clone(),
+            };
 
-            // Compute the total deposit fee
-            let total_deposit = bytes_deposit.saturating_add(T::NFTDepositBase::get());
-
-            // Reserve the currency
-            <T as Trait>::Currency::reserve(&sender, total_deposit)?;
+            // Encode the sender and metadata together into parameters.
+            let mut call_parameter = vec![];
+            p.using_encoded(|data| call_parameter.extend(data));
 
             // Wasm contract should emit an event for success or failure
             <contracts::Module<T>>::call(
@@ -174,38 +184,35 @@ decl_module! {
                 T::Lookup::unlookup(Self::validator_of(uid).unwrap()),
                 value,
                 gas_limit,
-                parameters)?;
-
-            // Store metadata for token
-            RegistryTokenMetadata::mutate((uid, RegistryNonce::get(uid)), |value| *value = metadata);
+                call_parameter)?;
 
             Ok(())
         }
 
         // Call back interface for smart contract
-        fn finish_mint(origin, uid: RegistryUid) -> DispatchResult {
+        fn finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
             // Ensure uid is existed
             Self::ensure_sender_is_validation_function(uid, &sender)?;
 
-            // Assign Nft uid
-            let nft_uid = RegistryNonce::get(&uid);
+            // Use the uid to create a new ERC721 token, BUG owner is not sender.
+            Self::mint_nft(&token_owner, &token_id)?;
 
-            // Use the uid to create a new ERC721 token
-            let token_id = Self::mint_nft(&sender, uid)?;
+            // Get storage fee for metadata
+            let total_deposit = Self::compute_metadata_fee(metadata.len() as u32);
+
+            // Reserve fee for token
+            <T as Trait>::Currency::reserve(&token_owner, total_deposit)?;
 
             // Insert token id to registry id map
-            <TokenByRegistryId<T>>::insert(token_id, (uid, RegistryNonce::get(&uid)));
+            <TokenByRegistryId<T>>::insert(&token_id, uid);
 
-            // Insert registry id to token id map
-            <RegistryToken<T>>::insert((uid, RegistryNonce::get(&uid)), token_id);
-
-            // Increment nonce
-            RegistryNonce::mutate(uid, |value| *value = nft_uid + 1);
+            // Insert token metadata
+            <RegistryTokenMetadata<T>>::insert(&token_id, metadata);
 
             // Just emit an event
-            Self::deposit_event(RawEvent::MintNft(uid, nft_uid, token_id));
+            Self::deposit_event(RawEvent::MintNft(uid, token_id));
 
             Ok(())
         }
@@ -291,11 +298,8 @@ decl_module! {
 impl<T: Trait> Module<T> {
     // Compute metadata fee
     fn get_metadata_fee(token_id: &T::Hash) -> BalanceOf<T> {
-        // Get registry id
-        let (registry_id, nonce) = <TokenByRegistryId<T>>::get(token_id);
-
         // Transfer the deposit after token transfer done
-        let metadata_length: u32 = RegistryTokenMetadata::get((registry_id, nonce)).len() as u32;
+        let metadata_length: u32 = <RegistryTokenMetadata<T>>::get(token_id).len() as u32;
 
         Self::compute_metadata_fee(metadata_length)
     }
@@ -327,9 +331,9 @@ impl<T: Trait> Module<T> {
     fn ensure_metadata_valid(metadata: &Vec<u8>) -> DispatchResult {
         let length = metadata.len() as u32;
         if length > MaxMetadataLength::get() || length < MinMetadataLength::get() {
-            Ok(())
-        } else {
             Err(Error::<T>::MetadataLengthInvalid.into())
+        } else {
+            Ok(())
         }
     }
 
@@ -356,6 +360,14 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    fn ensure_token_not_existed(token_id: &T::Hash) -> DispatchResult {
+        if <erc721::Module<T>>::_exists(token_id) {
+            Err(Error::<T>::TokenAlreadyExisted.into())
+        } else {
+            Ok(())
+        }
+    }
+
     fn _transfer_from(
         from: &T::AccountId,
         to: &T::AccountId,
@@ -378,9 +390,8 @@ impl<T: Trait> Module<T> {
     }
 
     // Mint a NFT according to accound id
-    fn mint_nft(account_id: &T::AccountId, _uid: RegistryUid) -> Result<T::Hash, DispatchError> {
-        let token_id = <erc721::Module<T>>::create_token(account_id)?;
-        Ok(token_id)
+    fn mint_nft(account_id: &T::AccountId, token_id: &T::Hash) -> DispatchResult {
+        <erc721::Module<T>>::_mint(account_id, token_id)
     }
 
     // Validate proof via merkle tree
