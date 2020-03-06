@@ -16,6 +16,7 @@
 
 use crate::{AccountId, AccountIndex, Balance, Hash, NodeRuntimeTypes};
 use ink_core::env::EnvTypes;
+use ink_core::storage::Vec;
 use pallet_indices::address::Address;
 use scale::{Codec, Decode, Encode};
 use sp_runtime::traits::Member;
@@ -66,7 +67,7 @@ where
 }
 
 /// Generic Balance Call, could be used with other runtimes
-#[derive(Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode)]
 pub enum NFT<T>
 where
     T: EnvTypes,
