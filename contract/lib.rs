@@ -1,10 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ink_lang as ink;
-use ink_lang::contract;
-// use ink_types_node_runtime::{calls, AccountIndex, NodeRuntimeTypes};
 
-#[ink::contract(version = "0.1.0")]
+#[ink::contract(version = "0.1.0", env = NodeRuntimeTypes)]
 mod contract {
     use ink_core::storage;
 
@@ -44,14 +42,6 @@ mod contract {
         #[ink(message)]
         fn get(&self) -> bool {
             *self.value
-        }
-
-        pub fn balance_transfer(&mut self, dest: AccountId, value: Balance) {
-            let dest_addr = calls::Address::Id(dest);
-            let transfer_call =
-                calls::Balances::<NodeRuntimeTypes, AccountIndex>::transfer(dest_addr, value);
-            env.dispatch_call(transfer_call);
-            env.invoke_runtime();
         }
     }
 
