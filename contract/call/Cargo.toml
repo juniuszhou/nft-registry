@@ -18,6 +18,7 @@ categories = ["no-std", "embedded"]
 include = ["/Cargo.toml", "src/**/*.rs", "/README.md", "/LICENSE"]
 
 [dependencies]
+ink_prelude = { git = "https://github.com/paritytech/ink", package = "ink_prelude", default-features = false }
 ink_core = { git = "https://github.com/paritytech/ink/", package = "ink_core", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate/", package = "frame-system", default-features = false }
 pallet-indices = { git = "https://github.com/paritytech/substrate/", package = "pallet-indices", default-features = false }
@@ -33,6 +34,7 @@ node-runtime = { git = "https://github.com/paritytech/substrate/", package = "no
 [features]
 default = ["std"]
 std = [
+    "ink_prelude/std",
     "ink_core/std",
     "frame-system/std",
     "pallet-indices/std",
