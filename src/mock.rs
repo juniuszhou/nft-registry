@@ -1,7 +1,9 @@
 use super::*;
 
 use contracts::{AccountCounter, ComputeDispatchFee, ContractAddressFor, TrieId, TrieIdGenerator};
+// use ink_core::env::call::{CallData, Selector};
 use ink_core::env::*;
+
 // use node_primitives::Balance;
 use node_runtime::constants::currency::*;
 use sp_core::H256;
@@ -335,8 +337,8 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
     use std::{fs::File, io, io::prelude::*};
 
     // Get the wasm contract byte code from a file
-    let mut f =
-        File::open(Path::new("./testcontract.wasm")).map_err(|_| "Failed to open contract file")?;
+    let mut f = File::open(Path::new("contract/validation/target/contract.wasm"))
+        .map_err(|_| "Failed to open contract file")?;
     let mut bytecode = Vec::<u8>::new();
     f.read_to_end(&mut bytecode)
         .map(|_| bytecode)
@@ -356,6 +358,59 @@ where
     T: system::Trait,
 {
     compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap()
+}
+
+pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
+    let origin = Origin::signed(account_id);
+
+    let bytecode = get_wasm_bytecode().unwrap();
+    let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
+    assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
+        origin.clone(),
+        100_000,
+        bytecode.clone()
+    ));
+
+    assert_ok!(<contracts::Module<NftRegistryTest>>::instantiate(
+        origin.clone(),
+        1_000,
+        100_000,
+        codehash,
+        codec::Encode::encode(&account_id)
+    ));
+    let keccak = ink_utils::hash::keccak256("dummy".as_bytes());
+
+    let selector = [keccak[0], keccak[1], keccak[2], keccak[3]];
+    let mut call = selector.encode();
+    let registry_id: u64 = 0;
+    call.append(&mut Encode::encode(&registry_id));
+
+    let addr =
+        <NftRegistryTest as contracts::Trait>::DetermineContractAddress::contract_address_for(
+            &codehash,
+            &codec::Encode::encode(&account_id),
+            &account_id,
+        );
+
+    println!("Call: {:?}", call.clone());
+
+    println!("address of contract is {:?}", addr.clone());
+
+    assert_ok!(NftReg::new_registry(origin.clone(), addr));
+
+    let res = <contracts::Module<NftRegistryTest>>::bare_call(account_id, addr, 0, 100_000, call);
+    println!(
+        "Call result: {:?}",
+        res.ok().map(|r| (r.is_success(), r.data))
+    );
+    // println!("Call result: {:?}", res.err().map(|e| (e.reason, e.buffer)));
+
+    for event in <system::Module<NftRegistryTest>>::events() {
+        println!("{:?}", event);
+    }
+
+    assert_eq!(true, false);
+    (bytecode, codehash)
 }
 
 pub fn register_validation_fn_mock<T>(account_id: u64, bytecode: &Vec<u8>, codehash: &H256) -> u64
@@ -408,8 +463,8 @@ pub fn create_nft_mock(registry_id: u64, account_id: u64, token_id: H256, result
             origin,
             registry_id,
             token_id,
-            b"".to_vec(),
             b"valid metadata".to_vec(),
+            vec![],
             0,
             100_000
         ),

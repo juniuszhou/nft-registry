@@ -178,11 +178,12 @@ decl_module! {
                 token_id: token_id,
                 token_owner: sender.clone(),
                 metadata: metadata.clone(),
-                parameters: parameters,
+                parameters: parameters.clone(),
             };
 
             // Encode the sender and metadata together into parameters.
-            let mut call_parameter = vec![];
+            // let mut call_parameter = vec![];
+            let mut call_parameter = Vec::<u8>::new();
             contract_parameter.using_encoded(|data| call_parameter.extend(data));
 
             // Wasm contract should emit an event for success or failure
@@ -191,13 +192,27 @@ decl_module! {
                 T::Lookup::unlookup(Self::validator_of(uid).unwrap()),
                 value,
                 gas_limit,
-                call_parameter)?;
+                parameters,)?;
+                // call_parameter)?;
 
             Ok(())
         }
 
         // Call back interface for smart contract
-        fn finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>) -> DispatchResult {
+        fn finish_mint(origin, uid: RegistryUid) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            // Ensure uid is existed
+            Self::ensure_sender_is_validation_function(uid, &sender)?;
+
+            // Just emit an event
+            Self::deposit_event(RawEvent::MintNft(uid, T::Hash::default()));
+
+            Ok(())
+        }
+
+        // Call back interface for smart contract
+        fn new_finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
             // Ensure uid is existed

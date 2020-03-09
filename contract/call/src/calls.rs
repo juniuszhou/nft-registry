@@ -30,7 +30,7 @@ use sp_runtime::traits::Member;
 pub enum Call {
     #[codec(index = "6")]
     Balances(Balances<NodeRuntimeTypes, AccountIndex>),
-    #[codec(index = "8")]
+    #[codec(index = "2")]
     NFT(NFT<NodeRuntimeTypes>),
 }
 
@@ -76,7 +76,11 @@ where
 {
     #[allow(non_camel_case_types)]
     // finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>)
-    finish_mint(u64, T::AccountId, T::Hash, Vec<u8>),
+    new_finish_mint(u64, T::AccountId, T::Hash, Vec<u8>),
+
+    #[allow(non_camel_case_types)]
+    // finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>)
+    finish_mint(u64),
 }
 
 // pub fn transfer(
@@ -89,8 +93,12 @@ pub fn transfer_balance(account: AccountId, balance: Balance) -> Call {
     Balances::<NodeRuntimeTypes, AccountIndex>::transfer(account.into(), balance).into()
 }
 
-pub fn finish_mint(uid: u64, account: AccountId, token_id: Hash, metadata: Vec<u8>) -> Call {
-    NFT::<NodeRuntimeTypes>::finish_mint(uid, account, token_id, metadata).into()
+pub fn new_finish_mint(uid: u64, account: AccountId, token_id: Hash, metadata: Vec<u8>) -> Call {
+    NFT::<NodeRuntimeTypes>::new_finish_mint(uid, account, token_id, metadata).into()
+}
+
+pub fn finish_mint(uid: u64) -> Call {
+    NFT::<NodeRuntimeTypes>::finish_mint(uid).into()
 }
 
 #[cfg(test)]

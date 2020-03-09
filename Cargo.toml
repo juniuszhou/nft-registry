@@ -22,6 +22,7 @@ std = [
     'balances/std',
     'node-runtime/std',
     'ink-core/std',
+    'ink-utils/std',
 ]
 
 [dependencies.serde]
@@ -110,6 +111,12 @@ rev = 'ddb309ae7c70e5e51a60879af18819cf28be4a32'
 default-features = false
 git = "https://github.com/paritytech/ink"
 package = "ink_core"
+rev = '03825afbe66b68e58df9d2be9d34570718bfbcf7'
+
+[dependencies.ink-utils]
+default-features = false
+git = "https://github.com/paritytech/ink"
+package = "ink_utils"
 rev = '03825afbe66b68e58df9d2be9d34570718bfbcf7'
 
 [dependencies.wabt]

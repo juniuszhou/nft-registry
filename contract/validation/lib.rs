@@ -21,6 +21,19 @@ mod calls {
         parameters: Vec<u8>,
     }
 
+    #[derive(Encode, Decode)]
+    struct StaticProof<Hash> {
+        basic_data_root: Hash,
+        zk_data_root: Hash,
+        signature_root: Hash,
+    }
+
+    #[derive(Encode, Decode)]
+    pub struct Proof {
+        leaf_hash: Hash,
+        sorted_hashes: Vec<Hash>,
+    }
+
     /// This simple dummy contract dispatches substrate runtime calls
     #[ink(storage)]
     struct Calls {}
@@ -37,7 +50,27 @@ mod calls {
             let decoded =
                 ContractParameter::<Hash, AccountId>::decode(&mut &parameters[..]).unwrap();
 
-            let mint_call = runtime_calls::finish_mint(decoded.uid, decoded.token_owner, decoded.token_id, decoded.metadata);
+            let mint_call = runtime_calls::new_finish_mint(
+                decoded.uid,
+                decoded.token_owner,
+                decoded.token_id,
+                decoded.metadata,
+            );
+            // dispatch the call to the runtime
+            let result = self.env().invoke_runtime(&mint_call);
+
+            // report result to console
+            // NOTE: println should only be used on a development chain)
+            env::println(&format!(
+                "Balance transfer invoke_runtime result {:?}",
+                result
+            ));
+        }
+
+        #[ink(message)]
+        fn dummy(&self) {
+            let uid: u64 = 0;
+            let mint_call = runtime_calls::finish_mint(uid);
             // dispatch the call to the runtime
             let result = self.env().invoke_runtime(&mint_call);
 

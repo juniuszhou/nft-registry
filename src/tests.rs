@@ -20,47 +20,19 @@ fn mint_nft_from_basic_contract() {
 }
 
 #[test]
-fn mint_validation_not_exist() {
+fn mint_nft_from_ink_contract() {
     ExtBuilder::default().build().execute_with(|| {
         create_account_mock();
         let account_id = ALICE;
-        let registry_id = 0;
         let token_id: H256 = H256::from_low_u64_be(0);
+        let registry_id = 0;
 
-        let contract_address = NULL_CONTRACT;
-        create_nft_mock(
-            registry_id,
-            account_id,
-            token_id,
-            Err(Error::<NftRegistryTest>::ValidationFnNotExisted.into()),
-        );
-    });
-}
+        let (bytecode, codehash) = get_smart_contract(account_id);
 
-#[test]
-fn mint_nft_from_ink_contract() {
-    ExtBuilder::default().build().execute_with(|| {
-        // Balances::deposit_creating(&ALICE, 100_000_000);
-        // let origin = Origin::signed(ALICE);
-        // let registry_id = 0;
-
-        // // Get wasm bytecode
-        // let bytecode = get_wasm_bytecode().unwrap();
-        // let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
-
-        // // Store and instantiate contract
-        // assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
-        //     origin.clone(),
-        //     100_000,
-        //     bytecode
-        // )
-        // .and_then(|_| <contracts::Module<NftRegistryTest>>::instantiate(
-        //     origin.clone(),
-        //     1_000,
-        //     100_000,
-        //     codehash,
-        //     codec::Encode::encode(&ALICE)
-        // )));
+        // let contract_address =
+        //     register_validation_fn_mock::<NftRegistryTest>(account_id, &bytecode, &codehash);
+        // register_validation_mock(account_id, contract_address);
+        // create_nft_mock(registry_id, account_id, token_id, Ok(()));
 
         // Call validation contract method
         //let mut call = CallData::new( Selector::from_str("validate") );
@@ -164,3 +136,21 @@ fn mint_nft_from_ink_contract() {
 //         assert_eq!(true, true);
 //     });
 // }
+
+#[test]
+fn mint_validation_not_exist() {
+    ExtBuilder::default().build().execute_with(|| {
+        create_account_mock();
+        let account_id = ALICE;
+        let registry_id = 0;
+        let token_id: H256 = H256::from_low_u64_be(0);
+
+        let contract_address = NULL_CONTRACT;
+        create_nft_mock(
+            registry_id,
+            account_id,
+            token_id,
+            Err(Error::<NftRegistryTest>::ValidationFnNotExisted.into()),
+        );
+    });
+}

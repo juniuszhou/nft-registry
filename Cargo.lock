@@ -1769,6 +1769,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "ink_core",
+ "ink_utils",
  "node-primitives",
  "node-runtime",
  "pallet-balances",
