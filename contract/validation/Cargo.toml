@@ -15,10 +15,10 @@ scale = { package = "parity-scale-codec", version = "1.1", default-features = fa
 type-metadata = { git = "https://github.com/type-metadata/type-metadata.git", default-features = false, features = ["derive"], optional = true }
 sp-keyring = { git = "https://github.com/paritytech/substrate/", package = "sp-keyring", optional = true }
 
-ink_types_node_runtime = { path = "../call", default-features = false }
+ink_types_node_runtime = { path = "../call", package = "ink_types_node_runtime", default-features = false }
 
 [lib]
-name = "call"
+name = "contract"
 path = "lib.rs"
 crate-type = [
 	# Used for normal contract Wasm blobs.

@@ -28,7 +28,7 @@ struct ContractParameter<Hash, Account> {
     token_id: Hash,
     token_owner: Account,
     metadata: Vec<u8>,
-    parameters: Vec<u8>,
+    proof_leaves: Vec<H256>,
 }
 
 type RegistryUid = u64;
@@ -44,6 +44,9 @@ pub trait Trait: system::Trait + contracts::Trait + erc721::Trait + anchor::Trai
 
     /// The amount of balance that must be deposited per byte of metadata stored.
     type NFTDepositPerByte: Get<BalanceOf<Self>>;
+
+    /// The amount of balance that must be deposited per validation function registry.
+    type NFTValidationRegistryDeposit: Get<BalanceOf<Self>>;
 
     /// Currency type for this module.
     type Currency: ReservableCurrency<Self::AccountId>
@@ -72,6 +75,12 @@ decl_error! {
 
         // Not validation function
         NotValidationFunction,
+
+        // Proof validation failed
+        ProofValidationFailure,
+
+        // Proof validation failed
+        DocumentNotAnchored,
 
         // Token URI length
         // TokenURILengthInvalid,
@@ -131,9 +140,15 @@ decl_module! {
         // Fee for one NFT metadata storage
         const NFTDepositBase: BalanceOf<T> = T::NFTDepositBase::get();
 
+        // Fee for each NFT validation registry
+        const NFTValidationRegistryDeposit: BalanceOf<T> = T::NFTValidationRegistryDeposit::get();
+
         // Register validation function
         fn new_registry(origin, validation_fn_addr: T::AccountId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+
+            // Reserve fee for token
+            <T as Trait>::Currency::reserve(&sender, T::NFTValidationRegistryDeposit::get())?;
 
             // Keep old value for event
             let uid = NextRegistryId::get();
@@ -153,50 +168,81 @@ decl_module! {
         // Mint a new token
         // Value: account can transfer some currency to smart contract via calling
         // Gas limit: set the maximum gas usage for smart contract execution in WASM
-        fn mint(origin,
-                uid: RegistryUid,
-                token_id: T::Hash,
-                metadata: Vec<u8>,
-                parameters: Vec<u8>,
-                value: contracts::BalanceOf<T>,
-                gas_limit: contracts::Gas,
-            ) -> DispatchResult {
+        fn new_mint(origin, addr: T::AccountId, value: contracts::BalanceOf<T>,
+            gas_limit: contracts::Gas,) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+            let keccak = ink_utils::hash::keccak256("dummy".as_bytes());
+            // let keccak = ink_utils::hash::keccak256("transfer".as_bytes());
 
-            // Contract registered for the uid
-            Self::ensure_validation_fn_exists(uid)?;
-
-            // Ensure token id not existed
-            Self::ensure_token_not_existed(&token_id)?;
-
-            // Ensure metadata is valid
-            Self::ensure_metadata_valid(&metadata)?;
-
-            // Put parameters into single struct.
-            let contract_parameter = ContractParameter::<T::Hash, T::AccountId> {
-                uid: uid,
-                token_id: token_id,
-                token_owner: sender.clone(),
-                metadata: metadata.clone(),
-                parameters: parameters.clone(),
-            };
-
-            // Encode the sender and metadata together into parameters.
-            // let mut call_parameter = vec![];
-            let mut call_parameter = Vec::<u8>::new();
-            contract_parameter.using_encoded(|data| call_parameter.extend(data));
+            let selector = [keccak[0], keccak[1], keccak[2], keccak[3]];
+            let mut call = selector.encode();
 
             // Wasm contract should emit an event for success or failure
-            <contracts::Module<T>>::call(
-                T::Origin::from(RawOrigin::<T::AccountId>::Signed(sender)),
-                T::Lookup::unlookup(Self::validator_of(uid).unwrap()),
+            <contracts::Module<T>>::bare_call(
+                sender,
+                addr,
                 value,
                 gas_limit,
-                parameters,)?;
-                // call_parameter)?;
+                call);
 
             Ok(())
         }
+
+        fn mint(origin,
+            uid: RegistryUid,
+            token_id: T::Hash,
+            metadata: Vec<u8>,
+            anchor_id: T::Hash,
+            pfs: Vec<Proof>,
+            static_proofs: [H256;3],
+            value: contracts::BalanceOf<T>,
+            gas_limit: contracts::Gas,
+        ) -> DispatchResult {
+        let sender = ensure_signed(origin)?;
+
+        // Contract registered for the uid
+        Self::ensure_validation_fn_exists(uid)?;
+
+        // Ensure token id not existed
+        Self::ensure_token_not_existed(&token_id)?;
+
+        // Ensure metadata is valid
+        Self::ensure_metadata_valid(&metadata)?;
+
+        // Get the doc root
+        let doc_root = Self::get_document_root(&anchor_id)?;
+
+        // Verify the proof against document root
+        // Self::validate_proofs(&doc_root, &pfs, &static_proofs)?;
+
+        // Compute the bundled hash
+        let proof_leaves = pfs.iter().map(|proof| proof.leaf_hash).collect();
+
+        // Put parameters into single struct.
+        let contract_parameter = ContractParameter::<T::Hash, T::AccountId> {
+            uid: uid,
+            token_id: token_id,
+            token_owner: sender.clone(),
+            metadata: metadata.clone(),
+            proof_leaves: proof_leaves,
+        };
+
+        // Encode the sender and metadata together into parameters.
+        // let mut call_parameter = vec![];
+        let mut call_parameter = Vec::<u8>::new();
+        contract_parameter.using_encoded(|data| call_parameter.extend(data));
+
+        // Wasm contract should emit an event for success or failure
+        <contracts::Module<T>>::call(
+            T::Origin::from(RawOrigin::<T::AccountId>::Signed(sender)),
+            T::Lookup::unlookup(Self::validator_of(uid).unwrap()),
+            value,
+            gas_limit,
+            //call_parameter)?;
+            vec![])?;
+
+        Ok(())
+    }
 
         // Call back interface for smart contract
         fn finish_mint(origin, uid: RegistryUid) -> DispatchResult {
@@ -239,21 +285,21 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(1_500_000)]
-        fn validate_mint(origin, anchor_id: T::Hash, deposit_address: [u8; 20], pfs: Vec<Proof>, static_proofs: [H256;3]) -> DispatchResult {
-            ensure_signed(origin)?;
+        // #[weight = SimpleDispatchInfo::FixedNormal(1_500_000)]
+        // fn validate_mint(origin, anchor_id: T::Hash, deposit_address: [u8; 20], pfs: Vec<Proof>, static_proofs: [H256;3]) -> DispatchResult {
+        //     ensure_signed(origin)?;
 
-            // get the anchor data from anchor ID
-            let anchor_data = <anchor::Module<T>>::get_anchor_by_id(anchor_id).ok_or("Anchor doesn't exist")?;
+        //     // get the anchor data from anchor ID
+        //     let anchor_data = <anchor::Module<T>>::get_anchor_by_id(anchor_id).ok_or("Anchor doesn't exist")?;
 
-            // validate proofs
-            ensure!(Self::validate_proofs(anchor_data.get_doc_root(), &pfs, static_proofs), "Invalid proofs");
+        //     // validate proofs
+        //     ensure!(Self::validate_proofs(anchor_data.get_doc_root(), &pfs, static_proofs), "Invalid proofs");
 
-            // get the bundled hash
-            let bundled_hash = Self::get_bundled_hash(pfs, deposit_address);
+        //     // get the bundled hash
+        //     let bundled_hash = Self::get_bundled_hash(pfs, deposit_address);
 
-            Ok(())
-        }
+        //     Ok(())
+        // }
 
         // transfer_from will transfer to addresses even without a balance
         fn transfer_from(origin, from: T::AccountId, to: T::AccountId, token_id: T::Hash) -> DispatchResult {
@@ -318,6 +364,14 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    // Get the document root via anchor id
+    fn get_document_root(anchor_id: &T::Hash) -> Result<T::Hash, DispatchError> {
+        match <anchor::Module<T>>::get_anchor_by_id(*anchor_id) {
+            Some(anchor_data) => Ok(anchor_data.doc_root),
+            None => Err(Error::<T>::DocumentNotAnchored.into()),
+        }
+    }
+
     // Compute metadata fee
     fn get_metadata_fee(token_id: &T::Hash) -> BalanceOf<T> {
         // Transfer the deposit after token transfer done
@@ -417,8 +471,16 @@ impl<T: Trait> Module<T> {
     }
 
     // Validate proof via merkle tree
-    fn validate_proofs(doc_root: T::Hash, pfs: &Vec<Proof>, static_proofs: [H256; 3]) -> bool {
-        proofs::validate_proofs(H256::from_slice(doc_root.as_ref()), pfs, static_proofs)
+    fn validate_proofs(
+        doc_root: &T::Hash,
+        pfs: &Vec<Proof>,
+        static_proofs: &[H256; 3],
+    ) -> DispatchResult {
+        if proofs::validate_proofs(H256::from_slice(doc_root.as_ref()), pfs, *static_proofs) {
+            Ok(())
+        } else {
+            Err(Error::<T>::ProofValidationFailure.into())
+        }
     }
 
     /// Returns a Keccak hash of deposit_address + hash(keccak(name+value+salt)) of each proof provided.

@@ -255,6 +255,8 @@ impl contracts::Trait for NftRegistryTest {
 parameter_types! {
     pub const NFTDepositBase: u64 = 1_000 * CENTS as u64;
     pub const NFTDepositPerByte: u64 = 1_000 * CENTS as u64;
+    pub const NFTValidationRegistryDeposit: u64 = 1_000 * CENTS as u64;
+
 }
 
 impl super::Trait for NftRegistryTest {
@@ -263,6 +265,7 @@ impl super::Trait for NftRegistryTest {
     type Randomness = RandomnessCollectiveFlip;
     type NFTDepositBase = NFTDepositBase;
     type NFTDepositPerByte = NFTDepositPerByte;
+    type NFTValidationRegistryDeposit = NFTValidationRegistryDeposit;
     type Currency = Balances;
 }
 
@@ -337,8 +340,12 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
     use std::{fs::File, io, io::prelude::*};
 
     // Get the wasm contract byte code from a file
-    let mut f = File::open(Path::new("contract/validation/target/contract.wasm"))
-        .map_err(|_| "Failed to open contract file")?;
+    // let mut f = File::open(Path::new("contract/validation/target/contract.wasm"))
+    // Users/junius/github/paritytech/ink/examples/erc20/target
+    let mut f = File::open(Path::new(
+        "/Users/junius/github/paritytech/ink/examples/erc20/target/erc20.wasm",
+    ))
+    .map_err(|_| "Failed to open contract file")?;
     let mut bytecode = Vec::<u8>::new();
     f.read_to_end(&mut bytecode)
         .map(|_| bytecode)
@@ -347,9 +354,9 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
 
 pub fn create_account_mock() {
     Balances::deposit_creating(&ALICE, 100_000_000_000_000_000);
-    Balances::deposit_creating(&BOB, 100_000_000_000_000_000);
-    Balances::deposit_creating(&CHARLIE, 100_000_000_000_000_000);
-    Balances::deposit_creating(&DJANGO, 100_000_000_000_000_000);
+    // Balances::deposit_creating(&BOB, 100_000_000_000_000_000);
+    // Balances::deposit_creating(&CHARLIE, 100_000_000_000_000_000);
+    // Balances::deposit_creating(&DJANGO, 100_000_000_000_000_000);
 }
 
 // Compile smart contract from string
@@ -365,6 +372,8 @@ pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
 
     let bytecode = get_wasm_bytecode().unwrap();
     let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
+    println!("codehash is {:?}", codehash.clone());
+
     assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
         origin.clone(),
         100_000,
@@ -379,11 +388,17 @@ pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
         codec::Encode::encode(&account_id)
     ));
     let keccak = ink_utils::hash::keccak256("dummy".as_bytes());
+    // let keccak = ink_utils::hash::keccak256("transfer".as_bytes());
 
     let selector = [keccak[0], keccak[1], keccak[2], keccak[3]];
     let mut call = selector.encode();
-    let registry_id: u64 = 0;
-    call.append(&mut Encode::encode(&registry_id));
+    // let to_account = DJANGO;
+    // let to_balance: u64 = 23456;
+    // call.append(&mut Encode::encode(&to_account));
+    // call.append(&mut Encode::encode(&to_balance));
+
+    // let registry_id: u64 = 0;
+    // call.append(&mut Encode::encode(&registry_id));
 
     let addr =
         <NftRegistryTest as contracts::Trait>::DetermineContractAddress::contract_address_for(
@@ -398,11 +413,14 @@ pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
 
     assert_ok!(NftReg::new_registry(origin.clone(), addr));
 
-    let res = <contracts::Module<NftRegistryTest>>::bare_call(account_id, addr, 0, 100_000, call);
-    println!(
-        "Call result: {:?}",
-        res.ok().map(|r| (r.is_success(), r.data))
-    );
+    assert_ok!(NftReg::new_mint(origin.clone(), addr, 1000, 1000));
+
+    // let res =
+    //     <contracts::Module<NftRegistryTest>>::bare_call(account_id, addr, 100_000, 100_000, call);
+    // // println!(
+    //     "Call result: {:?}",
+    //     res.ok().map(|r| (r.is_success(), r.data))
+    // );
     // println!("Call result: {:?}", res.err().map(|e| (e.reason, e.buffer)));
 
     for event in <system::Module<NftRegistryTest>>::events() {
@@ -464,7 +482,9 @@ pub fn create_nft_mock(registry_id: u64, account_id: u64, token_id: H256, result
             registry_id,
             token_id,
             b"valid metadata".to_vec(),
+            Default::default(),
             vec![],
+            [H256::default(); 3],
             0,
             100_000
         ),

@@ -10,7 +10,7 @@ name = "abi-gen"
 path = "main.rs"
 
 [dependencies]
-contract = { path = "../..", package = "contract", default-features = false, features = ["ink-generate-abi"] }
+contract = { path = "../..", default-features = false, features = ["ink-generate-abi"] }
 ink_lang = { git = "https://github.com/paritytech/ink", package = "ink_lang", default-features = false, features = ["ink-generate-abi"] }
 serde = "1.0"
 serde_json = "1.0"

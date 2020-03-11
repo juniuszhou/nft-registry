@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 pub struct AnchorData<Hash, BlockNumber> {
-    id: Hash,
-    doc_root: Hash,
-    anchored_block: BlockNumber,
+    pub id: Hash,
+    pub doc_root: Hash,
+    pub anchored_block: BlockNumber,
 }
 
 impl<Hash, BlockNumber> AnchorData<Hash, BlockNumber> {
