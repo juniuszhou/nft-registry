@@ -31,7 +31,7 @@ pub trait Trait: system::Trait + pallet_timestamp::Trait + balances::Trait {}
 
 decl_storage! {
     trait Store for Module<T: Trait> as Anchor {
-        Version: u64;
+        pub AnchorDataById get(get_anchor_by_id): map T::Hash => Option<AnchorData<T::Hash, T::BlockNumber>>;
     }
 }
 
@@ -40,9 +40,13 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    /// Get an anchor by its id in the child storage
-    pub fn get_anchor_by_id(_anchor_id: T::Hash) -> Option<AnchorData<T::Hash, T::BlockNumber>> {
-        let result: AnchorData<T::Hash, T::BlockNumber> = Default::default();
-        Some(result)
+    pub fn insert_anchor_data(anchor_id: T::Hash, doc_root: T::Hash) {
+        <AnchorDataById<T>>::mutate(anchor_id, |value| {
+            *value = Some(AnchorData::<T::Hash, T::BlockNumber> {
+                id: anchor_id,
+                doc_root: doc_root,
+                anchored_block: Default::default(),
+            })
+        });
     }
 }

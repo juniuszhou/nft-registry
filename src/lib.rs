@@ -297,60 +297,6 @@ decl_module! {
             Ok(())
         }
 
-        // The method used in unit test because current unit test framework doesn't support
-        // the WASM VM execution. To call the native contract, must use the contracts::call
-        // the text code of contract as CODE_DISPATCH_CALL defined in mock file.
-        fn mint_unit_test(origin,
-            uid: RegistryUid,
-            token_id: T::Hash,
-            metadata: Vec<u8>,
-            doc_root: T::Hash,
-            pfs: Vec<Proof>,
-            static_proofs: [H256;3],
-            value: contracts::BalanceOf<T>,
-            gas_limit: contracts::Gas,
-        ) -> DispatchResult {
-            let sender = ensure_signed(origin)?;
-
-            // Contract registered for the uid
-            Self::ensure_validation_fn_exists(uid)?;
-
-            // Ensure token id not existed
-            Self::ensure_token_not_existed(&token_id)?;
-
-            // Ensure metadata is valid
-            Self::ensure_metadata_valid(&metadata)?;
-
-            // Get the doc root
-            // let doc_root = Self::get_document_root(&anchor_id)?;
-
-            // Verify the proof against document root
-            Self::validate_proofs(&doc_root, &pfs, &static_proofs)?;
-
-            // Wasm contract should emit an event for success or failure
-            <contracts::Module<T>>::call(
-                T::Origin::from(RawOrigin::<T::AccountId>::Signed(sender)),
-                T::Lookup::unlookup(Self::validator_of(uid).unwrap()),
-                value,
-                gas_limit,
-                vec![]);
-
-            Ok(())
-        }
-
-        // The method used in unit test to easily check if MintNft event can be received
-        fn finish_mint_unit_test(origin, uid: RegistryUid) -> DispatchResult {
-            let sender = ensure_signed(origin)?;
-
-            // Ensure uid is existed
-            Self::ensure_sender_is_validation_function(uid, &sender)?;
-
-            // Just emit an event
-            Self::deposit_event(RawEvent::MintNft(uid, T::Hash::default()));
-
-            Ok(())
-        }
-
         // uri not necessary yet
         // fn register_token_uri(origin, token_id: T::Hash, token_uri: Vec<u8>)-> DispatchResult {
         //     // Get sender from signature
