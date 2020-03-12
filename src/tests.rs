@@ -4,18 +4,6 @@ use super::*;
 use crate::mock::*;
 
 #[test]
-fn mint_nft_from_ink_contract() {
-    ExtBuilder::default().build().execute_with(|| {
-        create_account_mock();
-        let account_id = ALICE;
-        let token_id: H256 = H256::from_low_u64_be(0);
-        let registry_id = 0;
-
-        let (bytecode, codehash) = get_smart_contract(account_id);
-    });
-}
-
-#[test]
 fn mint_nft_from_basic_contract() {
     ExtBuilder::default().build().execute_with(|| {
         create_account_mock();
@@ -48,3 +36,16 @@ fn mint_validation_not_exist() {
         );
     });
 }
+
+// In unit test environment, the WASM VM execution not supported yet.
+// #[test]
+// fn mint_nft_from_ink_contract() {
+//     ExtBuilder::default().build().execute_with(|| {
+//         create_account_mock();
+//         let account_id = ALICE;
+//         let token_id: H256 = H256::from_low_u64_be(0);
+//         let registry_id = 0;
+
+//         let (bytecode, codehash) = get_smart_contract(account_id);
+//     });
+// }

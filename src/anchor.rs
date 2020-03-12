@@ -5,6 +5,7 @@
 //! [Centrifuge Protocol Paper](https://staticw.centrifuge.io/assets/centrifuge_os_protocol_paper.pdf)
 
 use codec::{Decode, Encode};
+use sp_core::H256;
 use support::{decl_module, decl_storage};
 
 #[cfg(feature = "std")]
