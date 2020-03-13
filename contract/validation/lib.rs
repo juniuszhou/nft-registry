@@ -16,39 +16,27 @@ mod calls {
     use ink_types_node_runtime::{calls as runtime_calls, NodeRuntimeTypes};
     use scale::{Decode, Encode};
 
-    // #[ink(event)]
-    // struct NewNew {
-    //     #[ink(topic)]
-    //     from: u64,
-    // }
+    #[derive(Encode, Decode)]
+    struct ContractParameter<Hash, AccountId> {
+        uid: u64,
+        token_id: Hash,
+        token_owner: AccountId,
+        metadata: Vec<u8>,
+        proof_leaves: Vec<Hash>,
+    }
 
-    // #[ink(event)]
-    // struct TransferTransfer {
-    //     #[ink(topic)]
-    //     from: u64,
-    // }
+    #[derive(Encode, Decode)]
+    struct StaticProof<Hash> {
+        basic_data_root: Hash,
+        zk_data_root: Hash,
+        signature_root: Hash,
+    }
 
-    // #[derive(Encode, Decode)]
-    // struct ContractParameter<Hash, AccountId> {
-    //     uid: u64,
-    //     token_id: Hash,
-    //     token_owner: AccountId,
-    //     metadata: Vec<u8>,
-    //     proof_leaves: Vec<Hash>,
-    // }
-
-    // #[derive(Encode, Decode)]
-    // struct StaticProof<Hash> {
-    //     basic_data_root: Hash,
-    //     zk_data_root: Hash,
-    //     signature_root: Hash,
-    // }
-
-    // #[derive(Encode, Decode)]
-    // pub struct Proof {
-    //     leaf_hash: Hash,
-    //     sorted_hashes: Vec<Hash>,
-    // }
+    #[derive(Encode, Decode)]
+    pub struct Proof {
+        leaf_hash: Hash,
+        sorted_hashes: Vec<Hash>,
+    }
 
     /// This simple dummy contract dispatches substrate runtime calls
     #[ink(storage)]
@@ -58,60 +46,30 @@ mod calls {
 
     impl Calls {
         #[ink(constructor)]
-        fn new(&mut self) {
-            // self.env().emit_event(NewNew { from: 10 });
-        }
+        fn new(&mut self) {}
 
         // Dispatches a `transfer` call to the Balances srml module
-        // #[ink(message)]
-        // fn validate(&self, uid: u64, dest: AccountId, value: Hash, metadata: Vec<u8>) {
-        //     finish_mint(u64, T::AccountId, T::Hash, Vec<u8>),
-        // fn validate(&self, parameters: Vec<u8>) {
-        //     let decoded =
-        //         ContractParameter::<Hash, AccountId>::decode(&mut &parameters[..]).unwrap();
-
-        //     let mint_call = runtime_calls::new_finish_mint(
-        //         decoded.uid,
-        //         decoded.token_owner,
-        //         decoded.token_id,
-        //         decoded.metadata,
-        //    );
-        // dispatch the call to the runtime
-        //let result = self.env().invoke_runtime(&mint_call);
-
-        // report result to console
-        // NOTE: println should only be used on a development chain)
-        //     env::println(&format!(
-        //         "Balance transfer invoke_runtime result {:?}",
-        //         result
-        //     ));
-        // }
-
         #[ink(message)]
-        fn dummy(&mut self) {
-            // let uid: u64 = 0;
-            // let mint_call = runtime_calls::transfer_balance(Default::default(), 4);
+        fn validate(&self, parameters: Vec<u8>) {
+            let decoded =
+                ContractParameter::<Hash, AccountId>::decode(&mut &parameters[..]).unwrap();
 
-            // let result = self.env().invoke_runtime(&mint_call);
+            let mint_call = runtime_calls::finish_mint(
+                decoded.uid,
+                decoded.token_id,
+                decoded.token_owner,
+                decoded.metadata,
+            );
 
-            // self.env().emit_event(TransferTransfer { from: 100 });
-            *self.value = !self.get();
-
-            // let mint_call = runtime_calls::finish_mint(uid);
             // dispatch the call to the runtime
-            // let result = self.env().invoke_runtime(&mint_call);
+            let result = self.env().invoke_runtime(&mint_call);
 
             // report result to console
             // NOTE: println should only be used on a development chain)
-            // env::println(&format!(
-            //     "Balance transfer invoke_runtime result {:?}",
-            //     result
-            // ));
-        }
-
-        #[ink(message)]
-        fn get(&self) -> bool {
-            *self.value
+            env::println(&format!(
+                "Balance transfer invoke_runtime result {:?}",
+                result
+            ));
         }
     }
 

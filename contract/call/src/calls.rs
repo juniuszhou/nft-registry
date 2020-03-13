@@ -75,30 +75,16 @@ where
     T::AccountId: Member + Codec,
 {
     #[allow(non_camel_case_types)]
-    // finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>)
-    new_finish_mint(u64, T::AccountId, T::Hash, Vec<u8>),
-
-    #[allow(non_camel_case_types)]
-    // finish_mint(origin, uid: RegistryUid, token_id: T::Hash, token_owner: T::AccountId, metadata: Vec<u8>)
-    finish_mint(u64),
+    finish_mint(u64, T::Hash, T::AccountId, Vec<u8>),
 }
-
-// pub fn transfer(
-// origin,
-// dest: <T::Lookup as StaticLookup>::Source,
-// #[compact] value: T::Balance
 
 /// Construct a `Balances::transfer` call
 pub fn transfer_balance(account: AccountId, balance: Balance) -> Call {
     Balances::<NodeRuntimeTypes, AccountIndex>::transfer(account.into(), balance).into()
 }
 
-pub fn new_finish_mint(uid: u64, account: AccountId, token_id: Hash, metadata: Vec<u8>) -> Call {
-    NFT::<NodeRuntimeTypes>::new_finish_mint(uid, account, token_id, metadata).into()
-}
-
-pub fn finish_mint(uid: u64) -> Call {
-    NFT::<NodeRuntimeTypes>::finish_mint(uid).into()
+pub fn finish_mint(uid: u64, token_id: Hash, account: AccountId, metadata: Vec<u8>) -> Call {
+    NFT::<NodeRuntimeTypes>::finish_mint(uid, token_id, account, metadata).into()
 }
 
 #[cfg(test)]

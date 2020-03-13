@@ -307,6 +307,7 @@ pub const BOB: u64 = 2;
 pub const CHARLIE: u64 = 3;
 pub const DJANGO: u64 = 4;
 pub const NULL_CONTRACT: u64 = 100;
+pub const INVALID_UID: u64 = 100;
 
 pub fn print_all_events() {
     println!("------------------- Print Events Started -------------------");
@@ -349,18 +350,15 @@ where
 
 pub fn create_account_mock(account_id: u64) {
     Balances::deposit_creating(&account_id, 100_000_000_000_000_000);
-    // Balances::deposit_creating(&BOB, 100_000_000_000_000_000);
-    // Balances::deposit_creating(&CHARLIE, 100_000_000_000_000_000);
-    // Balances::deposit_creating(&DJANGO, 100_000_000_000_000_000);
 }
 
 // Compile smart contract from string
-// pub fn compile_smart_contract<T>() -> (Vec<u8>, H256)
-// where
-//     T: system::Trait,
-// {
-//     compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap()
-// }
+pub fn compile_smart_contract<T>() -> (Vec<u8>, H256)
+where
+    T: system::Trait,
+{
+    compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap()
+}
 
 pub fn register_validation_fn_mock<T>(account_id: u64, bytecode: &Vec<u8>, codehash: &H256) -> u64
 where
@@ -408,12 +406,24 @@ pub fn insert_anchor_mock(anchor_id: H256, doc_root: H256) {
     <anchor::Module<NftRegistryTest>>::insert_anchor_data(anchor_id, doc_root);
 }
 
+pub fn get_valid_metadata() -> Vec<u8> {
+    let config = create_genesis_config();
+    vec![b'x'; config.min_token_metadata_length as usize]
+}
+
+pub fn get_invalid_metadata() -> Vec<u8> {
+    let config = create_genesis_config();
+    vec![b'x'; (config.min_token_metadata_length - 1) as usize]
+}
+
 pub fn create_nft_mock(
     registry_id: u64,
     account_id: u64,
     contract_address: u64,
     token_id: H256,
     anchor_id: H256,
+    metadata: Vec<u8>,
+    call_finish_mint: bool,
     result: DispatchResult,
 ) {
     let origin = Origin::signed(account_id);
@@ -424,7 +434,7 @@ pub fn create_nft_mock(
             origin,
             registry_id,
             token_id,
-            b"valid metadata".to_vec(),
+            metadata.clone(),
             anchor_id,
             vec![proof],
             static_proofs,
@@ -434,36 +444,40 @@ pub fn create_nft_mock(
         result
     );
 
+    if result.is_err() {
+        return;
+    }
+
     let contract_origin = Origin::signed(contract_address);
 
-    assert_ok!(NftReg::finish_mint(
-        contract_origin,
-        registry_id,
-        token_id,
-        contract_address,
-        b"valid metadata".to_vec(),
-    ),);
+    if call_finish_mint {
+        assert_ok!(NftReg::finish_mint(
+            contract_origin,
+            registry_id,
+            token_id,
+            account_id,
+            metadata,
+        ),);
 
-    print_all_events();
+        // Check event logs to see that nft was minted
+        assert_eq!(
+            <system::Module<NftRegistryTest>>::events()
+                .iter()
+                .find(|e| match e.event {
+                    MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
+                    _ => false,
+                })
+                .is_some(),
+            result.is_ok(),
+        );
 
-    // Check event logs to see that nft was minted
-    assert_eq!(
-        <system::Module<NftRegistryTest>>::events()
-            .iter()
-            .find(|e| match e.event {
-                MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
-                _ => false,
-            })
-            .is_some(),
-        result.is_ok(),
-    );
-
-    if result.is_ok() {
-        let owner = NftReg::_get_token_owner(&token_id);
-        println!("token is {:?} owner is {:?}", token_id, owner);
-    // Some(token_id)
-    } else {
-        // None
+        if result.is_ok() {
+            let owner = NftReg::_get_token_owner(&token_id);
+            println!("token is {:?} owner is {:?}", token_id, owner);
+        // Some(token_id)
+        } else {
+            // None
+        }
     }
 
     // assert_eq!(true, false);
@@ -481,6 +495,12 @@ pub fn transfer_token_mock(
     assert_eq!(NftReg::transfer_from(origin, from, to, token_id), result);
 }
 
+pub fn burn_token_mock(sender: u64, token_id: H256, result: DispatchResult) {
+    let origin = Origin::signed(sender);
+
+    assert_eq!(NftReg::burn(origin, token_id), result);
+}
+
 pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
     use std::path::Path;
     use std::{fs::File, io, io::prelude::*};
@@ -492,28 +512,31 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
     f.read_to_end(&mut bytecode)
         .map(|_| bytecode)
         .map_err(|_| "Didn't read to end of file")
+    
 }
 
 pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
     let origin = Origin::signed(account_id);
 
-    let bytecode = get_wasm_bytecode().unwrap();
-    let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
+    // let bytecode = get_wasm_bytecode().unwrap();
+    // let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
+
+    let (bytecode, codehash) = compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap();
     println!("codehash is {:?}", codehash.clone());
 
-    assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
-        origin.clone(),
-        100_000,
-        bytecode.clone()
-    ));
+    // assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
+    //     origin.clone(),
+    //     100_000,
+    //     bytecode.clone()
+    // ));
 
-    assert_ok!(<contracts::Module<NftRegistryTest>>::instantiate(
-        origin.clone(),
-        1_000,
-        100_000,
-        codehash,
-        codec::Encode::encode(&account_id)
-    ));
+    // assert_ok!(<contracts::Module<NftRegistryTest>>::instantiate(
+    //     origin.clone(),
+    //     1_000,
+    //     100_000,
+    //     codehash,
+    //     codec::Encode::encode(&account_id)
+    // ));
 
     (bytecode, codehash)
 }
