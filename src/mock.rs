@@ -1,20 +1,16 @@
 use super::*;
 
 use contracts::{AccountCounter, ComputeDispatchFee, ContractAddressFor, TrieId, TrieIdGenerator};
-// use ink_core::env::call::{CallData, Selector};
 use ink_core::env::*;
 
-// use node_primitives::Balance;
 use node_runtime::constants::currency::*;
 use sp_core::H256;
-use sp_core::{sr25519, Blake2Hasher};
 use sp_runtime::{
-    testing::{Digest, DigestItem, Header},
+    testing::Header,
     traits::{BlakeTwo256, Hash, IdentityLookup},
     BuildStorage, Perbill,
 };
 use std::cell::RefCell;
-use std::time::Instant;
 use support::{
     assert_ok, impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types,
     traits::Currency, weights::Weight,
@@ -107,6 +103,7 @@ impl pallet_timestamp::Trait for NftRegistryTest {
 impl erc721::Trait for NftRegistryTest {
     type Event = MetaEvent;
     type Randomness = RandomnessCollectiveFlip;
+    type TokenIndex = u64;
 }
 
 impl anchor::Trait for NftRegistryTest {}
@@ -153,34 +150,7 @@ thread_local! {
     static BLOCK_GAS_LIMIT: RefCell<u64> = RefCell::new(0);
 }
 
-pub fn create_genesis_config() -> crate::GenesisConfig {
-    crate::GenesisConfig {
-        min_token_metadata_length: 10,
-        max_token_metadata_length: 100,
-    }
-}
-
 impl ExtBuilder {
-    pub fn existential_deposit(mut self, existential_deposit: u64) -> Self {
-        self.existential_deposit = existential_deposit;
-        self
-    }
-    pub fn gas_price(mut self, gas_price: u64) -> Self {
-        self.gas_price = gas_price;
-        self
-    }
-    pub fn block_gas_limit(mut self, block_gas_limit: u64) -> Self {
-        self.block_gas_limit = block_gas_limit;
-        self
-    }
-    pub fn transfer_fee(mut self, transfer_fee: u64) -> Self {
-        self.transfer_fee = transfer_fee;
-        self
-    }
-    pub fn instantiation_fee(mut self, instantiation_fee: u64) -> Self {
-        self.instantiation_fee = instantiation_fee;
-        self
-    }
     pub fn set_associated_consts(&self) {
         EXISTENTIAL_DEPOSIT.with(|v| *v.borrow_mut() = self.existential_deposit);
         TRANSFER_FEE.with(|v| *v.borrow_mut() = self.transfer_fee);
@@ -190,7 +160,6 @@ impl ExtBuilder {
     pub fn build(self) -> sp_io::TestExternalities {
         self.set_associated_consts();
         let mut t = system::GenesisConfig::default()
-            // let mut t = create_genesis_config()
             .build_storage::<NftRegistryTest>()
             .unwrap();
         balances::GenesisConfig::<NftRegistryTest> {
@@ -209,9 +178,6 @@ impl ExtBuilder {
         .assimilate_storage(&mut t)
         .unwrap();
 
-        let nft_config = create_genesis_config();
-        nft_config.assimilate_storage(&mut t).unwrap();
-
         sp_io::TestExternalities::new(t)
     }
 }
@@ -222,6 +188,7 @@ pub type NftReg = super::Module<NftRegistryTest>;
 pub type Balances = balances::Module<NftRegistryTest>;
 pub type Contract = contracts::Module<NftRegistryTest>;
 pub type NftRegistry = super::Module<NftRegistryTest>;
+pub type ERC721 = erc721::Module<NftRegistryTest>;
 
 impl contracts::Trait for NftRegistryTest {
     type Currency = Balances;
@@ -261,7 +228,6 @@ parameter_types! {
 
 impl super::Trait for NftRegistryTest {
     type Event = MetaEvent;
-    // type Balance = u64;
     type Randomness = RandomnessCollectiveFlip;
     type NFTDepositBase = NFTDepositBase;
     type NFTDepositPerByte = NFTDepositPerByte;
@@ -348,8 +314,8 @@ where
     Ok((wasm, code_hash))
 }
 
-pub fn create_account_mock(account_id: u64) {
-    Balances::deposit_creating(&account_id, 100_000_000_000_000_000);
+pub fn create_account_test(account_id: u64) {
+    let _ = Balances::deposit_creating(&account_id, 100_000_000_000_000_000);
 }
 
 // Compile smart contract from string
@@ -360,7 +326,7 @@ where
     compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap()
 }
 
-pub fn register_validation_fn_mock<T>(account_id: u64, bytecode: &Vec<u8>, codehash: &H256) -> u64
+pub fn register_validation_fn_test<T>(account_id: u64, bytecode: &Vec<u8>, codehash: &H256) -> u64
 where
     T: system::Trait,
 {
@@ -386,48 +352,46 @@ where
     )
 }
 
-pub fn register_validation_mock(account_id: u64, contract_address: u64) {
+pub fn register_validation_test(account_id: u64, contract_address: u64, result: DispatchResult) {
     let origin = Origin::signed(account_id);
 
     // Create registry and mint nft
-    assert_ok!(NftReg::new_registry(origin.clone(), contract_address));
+    assert_eq!(
+        NftReg::new_registry(origin.clone(), contract_address),
+        result
+    );
 
-    // Check event logs to see that validation function registered
-    assert!(<system::Module<NftRegistryTest>>::events()
-        .iter()
-        .find(|e| match e.event {
-            MetaEvent::nftregistry(RawEvent::NewRegistry(_, _)) => true,
-            _ => false,
-        })
-        .is_some());
+    if result.is_ok() {
+        assert!(<system::Module<NftRegistryTest>>::events()
+            .iter()
+            .find(|e| match e.event {
+                MetaEvent::nftregistry(RawEvent::NewRegistry(_, _)) => true,
+                _ => false,
+            })
+            .is_some());
+    }
 }
 
-pub fn insert_anchor_mock(anchor_id: H256, doc_root: H256) {
+pub fn insert_anchor_test(anchor_id: H256, doc_root: H256) {
     <anchor::Module<NftRegistryTest>>::insert_anchor_data(anchor_id, doc_root);
 }
 
 pub fn get_valid_metadata() -> Vec<u8> {
-    let config = create_genesis_config();
-    vec![b'x'; config.min_token_metadata_length as usize]
+    vec![b'x'; 10]
 }
 
-pub fn get_invalid_metadata() -> Vec<u8> {
-    let config = create_genesis_config();
-    vec![b'x'; (config.min_token_metadata_length - 1) as usize]
-}
-
-pub fn create_nft_mock(
+pub fn create_nft_test(
     registry_id: u64,
     account_id: u64,
     contract_address: u64,
     token_id: H256,
     anchor_id: H256,
     metadata: Vec<u8>,
-    call_finish_mint: bool,
+    triple: (Proof, sp_core::H256, [H256; 3]),
     result: DispatchResult,
 ) {
     let origin = Origin::signed(account_id);
-    let (proof, doc_root, static_proofs) = get_valid_proof();
+    let (proof, doc_root, static_proofs) = triple;
     // Mint a nft
     assert_eq!(
         NftReg::mint(
@@ -450,40 +414,49 @@ pub fn create_nft_mock(
 
     let contract_origin = Origin::signed(contract_address);
 
-    if call_finish_mint {
-        assert_ok!(NftReg::finish_mint(
-            contract_origin,
-            registry_id,
-            token_id,
-            account_id,
-            metadata,
-        ),);
-
-        // Check event logs to see that nft was minted
-        assert_eq!(
-            <system::Module<NftRegistryTest>>::events()
-                .iter()
-                .find(|e| match e.event {
-                    MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
-                    _ => false,
-                })
-                .is_some(),
-            result.is_ok(),
-        );
-
-        if result.is_ok() {
-            let owner = NftReg::_get_token_owner(&token_id);
-            println!("token is {:?} owner is {:?}", token_id, owner);
-        // Some(token_id)
-        } else {
-            // None
-        }
-    }
-
-    // assert_eq!(true, false);
+    finish_mint_test(
+        contract_address,
+        registry_id,
+        token_id,
+        account_id,
+        metadata,
+        Ok(()),
+    );
 }
 
-pub fn transfer_token_mock(
+pub fn finish_mint_test(
+    contract_address: u64,
+    registry_id: u64,
+    token_id: H256,
+    account_id: u64,
+    metadata: Vec<u8>,
+    result: DispatchResult,
+) {
+    let contract_origin = Origin::signed(contract_address);
+
+    assert_eq!(
+        NftReg::finish_mint(contract_origin, registry_id, token_id, account_id, metadata,),
+        result
+    );
+
+    assert_eq!(
+        <system::Module<NftRegistryTest>>::events()
+            .iter()
+            .find(|e| match e.event {
+                MetaEvent::nftregistry(RawEvent::MintNft(_, _)) => true,
+                _ => false,
+            })
+            .is_some(),
+        result.is_ok(),
+    );
+
+    if result.is_ok() {
+        let owner = ERC721::owner_of(&token_id);
+        assert_eq!(account_id, owner.unwrap());
+    }
+}
+
+pub fn transfer_token_test(
     token_id: H256,
     sender: u64,
     from: u64,
@@ -495,7 +468,7 @@ pub fn transfer_token_mock(
     assert_eq!(NftReg::transfer_from(origin, from, to, token_id), result);
 }
 
-pub fn burn_token_mock(sender: u64, token_id: H256, result: DispatchResult) {
+pub fn burn_token_test(sender: u64, token_id: H256, result: DispatchResult) {
     let origin = Origin::signed(sender);
 
     assert_eq!(NftReg::burn(origin, token_id), result);
@@ -512,31 +485,13 @@ pub fn get_wasm_bytecode() -> std::result::Result<Vec<u8>, &'static str> {
     f.read_to_end(&mut bytecode)
         .map(|_| bytecode)
         .map_err(|_| "Didn't read to end of file")
-    
 }
 
 pub fn get_smart_contract(account_id: u64) -> (Vec<u8>, H256) {
     let origin = Origin::signed(account_id);
 
-    // let bytecode = get_wasm_bytecode().unwrap();
-    // let codehash = <NftRegistryTest as system::Trait>::Hashing::hash(&bytecode);
-
     let (bytecode, codehash) = compile_module::<NftRegistryTest>(CODE_DISPATCH_CALL).unwrap();
     println!("codehash is {:?}", codehash.clone());
-
-    // assert_ok!(<contracts::Module<NftRegistryTest>>::put_code(
-    //     origin.clone(),
-    //     100_000,
-    //     bytecode.clone()
-    // ));
-
-    // assert_ok!(<contracts::Module<NftRegistryTest>>::instantiate(
-    //     origin.clone(),
-    //     1_000,
-    //     100_000,
-    //     codehash,
-    //     codec::Encode::encode(&account_id)
-    // ));
 
     (bytecode, codehash)
 }

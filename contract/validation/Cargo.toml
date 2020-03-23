@@ -14,6 +14,7 @@ ink_prelude = { git = "https://github.com/paritytech/ink", package = "ink_prelud
 scale = { package = "parity-scale-codec", version = "1.1", default-features = false, features = ["derive"] }
 type-metadata = { git = "https://github.com/type-metadata/type-metadata.git", default-features = false, features = ["derive"], optional = true }
 sp-keyring = { git = "https://github.com/paritytech/substrate/", package = "sp-keyring", optional = true }
+sp-core = { git = "https://github.com/paritytech/substrate/", package = "sp-core", default-features = false, optional = true }
 
 ink_types_node_runtime = { path = "../call", package = "ink_types_node_runtime", default-features = false }
 
@@ -37,6 +38,7 @@ std = [
     "type-metadata/std",
     "ink_types_node_runtime/std",
     "sp-keyring",
+    "sp-core",
 ]
 test-env = [
     "std",

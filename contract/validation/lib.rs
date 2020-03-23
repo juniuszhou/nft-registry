@@ -3,16 +3,12 @@
 use ink_lang as ink;
 
 #[ink::contract(version = "0.1.0", env = NodeRuntimeTypes)]
-// #[ink::contract(version = "0.1.0")]
 
 mod calls {
     use ink_core::env;
     use ink_core::storage;
-
-    // use ink_core::storage::Vec;
     use ink_prelude::vec::Vec;
     use ink_prelude::*;
-
     use ink_types_node_runtime::{calls as runtime_calls, NodeRuntimeTypes};
     use scale::{Decode, Encode};
 
@@ -48,43 +44,54 @@ mod calls {
         #[ink(constructor)]
         fn new(&mut self) {}
 
-        // Dispatches a `transfer` call to the Balances srml module
+        // Dispatches a validate call to the NFT module
         #[ink(message)]
         fn validate(&self, parameters: Vec<u8>) {
             let decoded =
                 ContractParameter::<Hash, AccountId>::decode(&mut &parameters[..]).unwrap();
 
-            let mint_call = runtime_calls::finish_mint(
-                decoded.uid,
-                decoded.token_id,
-                decoded.token_owner,
-                decoded.metadata,
-            );
+            if decoded.uid > 0 {
+                let mint_call = runtime_calls::finish_mint(
+                    decoded.uid,
+                    decoded.token_id,
+                    decoded.token_owner,
+                    decoded.metadata,
+                );
 
-            // dispatch the call to the runtime
-            let result = self.env().invoke_runtime(&mint_call);
+                // dispatch the call to the runtime
+                let result = self.env().invoke_runtime(&mint_call);
 
-            // report result to console
-            // NOTE: println should only be used on a development chain)
-            env::println(&format!(
-                "Balance transfer invoke_runtime result {:?}",
-                result
-            ));
+                // report result to console
+                // NOTE: println should only be used on a development chain
+                env::println(&format!(
+                    "Balance transfer invoke_runtime result {:?}",
+                    result
+                ));
+            } else {
+                env::println("uid is invalid.");
+            }
         }
     }
 
     #[cfg(test)]
     mod tests {
         use super::*;
+        use sp_core::crypto::AccountId32;
         use sp_keyring::AccountKeyring;
 
         #[test]
-        fn dispatches_balances_call() {
+        fn dispatches_validate_call() {
             let calls = Calls::new();
-            // let alice = AccountId::from(AccountKeyring::Alice.to_account_id());
-            // assert_eq!(calls.env().dispatched_calls().into_iter().count(), 0);
-            // calls.balance_transfer(alice, 10000);
-            // assert_eq!(calls.env().dispatched_calls().into_iter().count(), 1);
+            let token_owner: AccountId32 = [0 as u8; 32].into();
+            let parameters = ContractParameter::<Hash, AccountId> {
+                uid: 0,
+                token_id: [0 as u8; 32].into(),
+                token_owner: token_owner.into(),
+                metadata: vec![],
+                proof_leaves: vec![],
+            };
+
+            let _result = calls.validate(parameters.encode());
         }
     }
 }
